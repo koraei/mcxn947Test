@@ -20,6 +20,7 @@
 *.key
 !**/sign-pub*.pem
 !**/root_keks_dummy*
+/firmware/m0_httpssrv/linker/
 
 # Tooling caches
 .west/

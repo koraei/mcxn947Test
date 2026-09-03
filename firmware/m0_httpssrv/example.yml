@@ -1,0 +1,11 @@
+m0_httpssrv_mbedtls:
+  boards:
+    frdmmcxn947@cm33_core0: []
+  contents:
+    document:
+      brief: M0 NXP lwip_httpssrv_mbedTLS_freertos wrapper (static IP + MCUboot linker only).
+      category: lwip_examples
+      name: m0_httpssrv_mbedtls${core_id_suffix_name}
+    meta_path: firmware/m0_httpssrv
+    project-root-path: boards/${board}/lwip_examples/lwip_httpssrv_mbedTLS/freertos/${multicore_foldername}
+  section-type: freestanding_application

@@ -161,7 +161,7 @@ def test_post_update_version_mismatch(tmp_path: Path):
 
 def test_send_otas_header_shape():
     """Wire header remains OTAS (P5 frozen), not legacy plan MCXNUP1."""
-    captured = {}
+    captured = {"parts": []}
 
     class FakeSock:
         def __enter__(self):
@@ -174,17 +174,18 @@ def test_send_otas_header_shape():
             pass
 
         def sendall(self, data):
-            captured["data"] = data
+            captured["parts"].append(bytes(data))
 
         def recv(self, n):
             return b"OK\n"
 
-    with mock.patch("socket.create_connection", return_value=FakeSock()):
+    with mock.patch("mcxn_lib.workflow.connect_mtls", return_value=FakeSock()):
         reply = send_otas(
             {"board_ip": "1.2.3.4", "update_port": 5555},
             b"sbv3" + b"\x00" * 60,
             bytes.fromhex("9DA8D48D0DDCD755903E8FBD3836C153"),
         )
     assert reply.startswith("OK")
-    assert captured["data"][:4] == b"OTAS"
-    assert captured["data"][4] == 1
+    blob = b"".join(captured["parts"])
+    assert blob[:4] == b"OTAS"
+    assert blob[4] == 1

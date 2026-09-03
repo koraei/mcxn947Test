@@ -185,3 +185,43 @@ The proven secure-boot / SB3 OTA update architecture is frozen. No new optional 
 ### Evidence
 - Gate report: `docs/evidence/P7_ROM_SECBOOT_GATE_REPORT.md`
 - Backups: `C:\mcxn-secrets\DEV-UNIT-01\backup\p7_pre\` (CMPA/CFPA/IFR0 bin+yaml)
+
+## 2026-09-03 — mTLS plan start; GATE (boot hang)
+
+**Branch:** `feat/mtls-tcp-socket` (from P7 `49c24af` / tag `p7-frozen-mtls-baseline`)  
+**Plan:** `doc/FRDM_MCXN947_RELIABLE_MTLS_TCP_SOCKET_PLAN_REV_B_FINAL.md`
+
+### Done
+- M0: NXP `lwip_httpssrv_mbedTLS` wrapper builds; on-target HTTPS not proven (hang after flash).
+- M1: PKI under `C:\mcxn-secrets\mtls`; `mtls_socket` + host Python `ssl` wired; pytest 10/10.
+- Product mTLS V1 **links** (~96% flash) but **hangs on boot** after dual-slot flash.
+
+### Board NOW
+Restored plaintext V2 (`app_v2_SIGNED_PAD.bin` both slots). STATUS V2 OK. No security writes.
+
+### Evidence
+`docs/evidence/M0_M1_MTLS_GATE_REPORT.md`
+
+### Stop
+Human/debug gate: diagnose mTLS app boot hang before continuing M2/M3/M4 hardware tests.
+
+
+## 2026-09-03 — mTLS boot debug APPROVED; M2/M3 proven
+
+### Boot hang root cause
+Application image was signed with `IMG1_1` (ROM/MBI). MCUboot expects `mcxn.toml` `imgtool_key` (SDK `sign-ecdsa-p256-priv.pem`). KEYHASH mismatch → no app entry (empty UART / no ping). Evidence: `docs/evidence/MTLS_BOOT_HANG_ROOT_CAUSE.md`.
+
+No APP_SIZE change. No debug-attach needed after KEYHASH proof. No CMPA/CFPA/IFR writes.
+
+### M2
+mTLS Hello/STATUS; raw/no-cert/wrong-CA/wrong-FP rejected; 100 reconnect PASS.
+
+### M3
+Chunked TLS OTAS required (`send_otas` 8 KiB). V1→V2 and CLI V2→V3 `UPDATE PASS`. Board now V3. Evidence: `docs/evidence/M2_M3_MTLS_PROOF.md`.
+
+### Host fix
+`tools/mcxn_lib/workflow.py` `send_otas`: chunked `sendall`.
+
+### Remaining gate (M4 time)
+24 h soak / full abort+link matrix still outstanding.
+

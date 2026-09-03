@@ -9,4 +9,7 @@
 | `examples/ota_examples/_common/sb3_api` | same | `firmware/app` via CMake (`sb3_api_mcxn10.c`) | SB3 processing | unchanged NXP; TCP replaces XMODEM only |
 | `components/silicon_id` (MCXN) | same | diagnostics | UUID | `SILICONID_GetID` |
 | SPSDK `nxpimage sb31` | 3.10.0 | `tools/mcxn.py package/release` | Unit SB3 generation | Host wrapper only; keys stay in secrets |
-| SDK `imgtool.py` | MCUboot in SDK | `tools/mcxn_lib` sign step | Slot image sign | unchanged NXP params |
+| SDK `imgtool.py` | MCUboot in SDK | `tools/mcxn_lib` sign step | Slot image sign | unchanged NXP params; key = `paths.imgtool_key` (not IMG1_1) |
+| `middleware/lwip/.../httpsrv_tls.c` BIO pattern | 26.06.00-LTS | `firmware/app/src/mtls_socket.c` | mbedTLS↔lwIP send/recv | No HTTPSRV; raw mTLS sockets only |
+| `middleware/mbedtls3x` + PSA + ELS_PKC + thread_alt | 26.06.00-LTS | product `prj.conf` | TLS 1.2 mTLS | Project overlay; SDK sources untouched |
+| Python `ssl` | host | `tools/mcxn_lib/mtls.py` | PC client mTLS + fingerprint pin | Secrets under `secrets_root/mtls/` |

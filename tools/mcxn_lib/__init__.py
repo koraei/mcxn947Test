@@ -208,18 +208,24 @@ def parse_status(text: str) -> StatusInfo:
 
 
 def fetch_status(cfg: dict, timeout: float = 5.0, host: str | None = None, port: int | None = None) -> StatusInfo:
+    from .mtls import connect_mtls
+
     ip = host or cfg["board_ip"]
     p = int(port if port is not None else cfg["hello_port"])
-    with socket.create_connection((ip, p), timeout=timeout) as s:
+    unit = load_unit(cfg.get("unit_name", "DEV-UNIT-01"))
+    with connect_mtls({**cfg, "board_ip": ip}, p, timeout=timeout, unit=unit) as s:
         s.sendall(b"STATUS\n")
         data = s.recv(256).decode("utf-8", "replace")
     return parse_status(data)
 
 
 def fetch_hello(cfg: dict, timeout: float = 5.0, host: str | None = None, port: int | None = None) -> str:
+    from .mtls import connect_mtls
+
     ip = host or cfg["board_ip"]
     p = int(port if port is not None else cfg["hello_port"])
-    with socket.create_connection((ip, p), timeout=timeout) as s:
+    unit = load_unit(cfg.get("unit_name", "DEV-UNIT-01"))
+    with connect_mtls({**cfg, "board_ip": ip}, p, timeout=timeout, unit=unit) as s:
         s.sendall(b"Hello MCXN\n")
         return s.recv(128).decode("utf-8", "replace").strip()
 
@@ -231,10 +237,13 @@ def fetch_echo(
     host: str | None = None,
     port: int | None = None,
 ) -> str:
+    from .mtls import connect_mtls
+
     ip = host or cfg["board_ip"]
     p = int(port if port is not None else cfg["hello_port"])
+    unit = load_unit(cfg.get("unit_name", "DEV-UNIT-01"))
     msg = f"ECHO {payload}\n".encode("ascii")
-    with socket.create_connection((ip, p), timeout=timeout) as s:
+    with connect_mtls({**cfg, "board_ip": ip}, p, timeout=timeout, unit=unit) as s:
         s.sendall(msg)
         return s.recv(128).decode("utf-8", "replace").strip()
 

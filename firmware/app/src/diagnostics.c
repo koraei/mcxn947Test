@@ -20,6 +20,16 @@ volatile uint32_t g_update_success_count;
 volatile uint32_t g_update_failure_count;
 volatile uint32_t g_sb3_failure_count;
 volatile uint32_t g_link_down_count;
+volatile uint32_t g_mtls_handshake_ok;
+volatile uint32_t g_mtls_handshake_fail;
+volatile uint32_t g_mtls_verify_fail;
+volatile uint32_t g_mtls_timeout;
+volatile uint32_t g_mtls_peer_close;
+volatile uint32_t g_mtls_session_abort;
+volatile uint32_t g_normal_tls_rx_bytes;
+volatile uint32_t g_normal_tls_tx_bytes;
+volatile uint32_t g_update_tls_rx_bytes;
+volatile uint32_t g_update_tls_tx_bytes;
 
 static char s_uuid_hex[33];
 static uint8_t s_uuid_bytes[16];

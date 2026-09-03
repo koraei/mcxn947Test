@@ -23,11 +23,13 @@ mcux_add_source(
             src/hello_service.c
             src/update_service.c
             src/diagnostics.c
+            src/mtls_socket.c
             inc/app_config.h
             inc/diagnostics.h
             inc/led_task.h
             inc/hello_service.h
             inc/update_service.h
+            inc/mtls_socket.h
 )
 
 mcux_add_include(
@@ -64,7 +66,14 @@ mcux_add_macro(
     CC "-DMCUBOOT_APPLICATION=1\
        -DMCUBOOT_OTA_SB3_SUPPORT=1\
        -DUSE_RTOS=1\
-       -DPRINTF_ADVANCED_ENABLE=1"
+       -DPRINTF_ADVANCED_ENABLE=1\
+       -DMBEDTLS_THREADING_C\
+       -DMBEDTLS_THREADING_ALT"
+)
+
+mcux_add_source(
+    BASE_PATH C:/mcxn-secrets/mtls/generated
+    SOURCES mtls_creds.c
 )
 
 # NXP SB3 ROM path (same sources as ota_mcuboot_basic board reconfig).
@@ -99,7 +108,7 @@ mcux_add_mdk_configuration(
 )
 
 mcux_add_armgcc_configuration(
-    LD "-Xlinker --defsym=__stack_size__=0x1000 -Xlinker --defsym=__heap_size__=0x10000"
+    LD "-Xlinker --defsym=__stack_size__=0x1000 -Xlinker --defsym=__heap_size__=0x1B000"
 )
 
 include(${SdkRootDirPath}/${board_root}/${board}/ota_examples/ota_mcuboot_server/enet/reconfig.cmake OPTIONAL)

@@ -1,6 +1,7 @@
 #include "hello_service.h"
 #include "app_config.h"
 #include "diagnostics.h"
+#include "mtls_socket.h"
 
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
@@ -24,32 +25,43 @@ static void close_fd(int *fd)
 static void handle_client(int client)
 {
     char buf[HELLO_MAX_REQ_B + 1];
-    struct timeval tv;
+    mtls_session_t session;
     int n;
 
-    tv.tv_sec  = HELLO_RECV_TO_MS / 1000;
-    tv.tv_usec = (HELLO_RECV_TO_MS % 1000) * 1000;
-    (void)lwip_setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-    n = recv(client, buf, HELLO_MAX_REQ_B, 0);
-    if (n <= 0)
+    if (mtls_session_open(&session, client, MTLS_HANDSHAKE_TIMEOUT_MS) != 0)
     {
         g_hello_error_count++;
+        g_mtls_session_abort++;
         close_fd(&client);
         return;
     }
 
+    n = mtls_read(&session, buf, HELLO_MAX_REQ_B, HELLO_RECV_TO_MS);
+    if (n <= 0)
+    {
+        g_hello_error_count++;
+        mtls_session_close(&session);
+        close_fd(&client);
+        return;
+    }
+
+    g_normal_tls_rx_bytes += (uint32_t)n;
     buf[n] = '\0';
-    /* Trim trailing CR/LF for compare helpers */
     while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r'))
     {
         buf[--n] = '\0';
     }
 
+    PRINTF("RX plaintext: %s\r\n", buf);
+
     if ((n == 10) && (strncmp(buf, "Hello MCXN", 10) == 0))
     {
         const char *reply = APP_HELLO_REPLY "\n";
-        (void)send(client, reply, (int)strlen(reply), 0);
+        PRINTF("TX plaintext: %s", reply);
+        if (mtls_write_all(&session, reply, strlen(reply), MTLS_IO_TIMEOUT_MS) == 0)
+        {
+            g_normal_tls_tx_bytes += (uint32_t)strlen(reply);
+        }
     }
     else if ((n >= 4) && (strncmp(buf, "ECHO", 4) == 0))
     {
@@ -64,7 +76,10 @@ static void handle_client(int client)
         len = snprintf(reply, sizeof(reply), "ECHO %s %s\n", APP_VARIANT, payload);
         if (len > 0)
         {
-            (void)send(client, reply, len, 0);
+            if (mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS) == 0)
+            {
+                g_normal_tls_tx_bytes += (uint32_t)len;
+            }
         }
     }
     else if ((n >= 6) && (strncmp(buf, "STATUS", 6) == 0))
@@ -77,15 +92,19 @@ static void handle_client(int client)
                            (unsigned long)diagnostics_update_window_remaining_s());
         if (len > 0)
         {
-            (void)send(client, status, len, 0);
+            if (mtls_write_all(&session, status, (size_t)len, MTLS_IO_TIMEOUT_MS) == 0)
+            {
+                g_normal_tls_tx_bytes += (uint32_t)len;
+            }
         }
     }
     else
     {
         g_hello_error_count++;
-        (void)send(client, "ERR\n", 4, 0);
+        (void)mtls_write_all(&session, "ERR\n", 4, MTLS_IO_TIMEOUT_MS);
     }
 
+    mtls_session_close(&session);
     close_fd(&client);
 }
 
@@ -130,7 +149,7 @@ static void hello_task(void *arg)
             continue;
         }
 
-        PRINTF("Hello TCP listening on port %u\r\n", (unsigned)HELLO_TCP_PORT);
+        PRINTF("Hello mTLS listening on port %u\r\n", (unsigned)HELLO_TCP_PORT);
 
         for (;;)
         {
@@ -140,7 +159,6 @@ static void hello_task(void *arg)
             if (client < 0)
             {
                 g_hello_error_count++;
-                /* Keep listening; recreate server on hard failure path below if needed */
                 continue;
             }
             g_hello_accept_count++;
@@ -151,7 +169,7 @@ static void hello_task(void *arg)
 
 void hello_service_start(void)
 {
-    if (xTaskCreate(hello_task, "hello", 1536, NULL, tskIDLE_PRIORITY + 3, NULL) != pdPASS)
+    if (xTaskCreate(hello_task, "hello", 4096, NULL, tskIDLE_PRIORITY + 3, NULL) != pdPASS)
     {
         PRINTF("Hello task create failed\r\n");
     }

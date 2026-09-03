@@ -17,6 +17,7 @@ if str(_TOOLS) not in sys.path:
     sys.path.insert(0, str(_TOOLS))
 
 from mcxn_lib import fetch_echo, fetch_hello, fetch_status, load_cfg  # noqa: E402
+from mcxn_lib.mtls import FingerprintError  # noqa: E402
 from mcxn_lib.workflow import (  # noqa: E402
     cmd_build,
     cmd_doctor,

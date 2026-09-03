@@ -12,5 +12,6 @@
   "cust_mk_sk_fingerprint": "fb954a586b2259ca427a7af70dcb91bb6035430e18fa49c3c0e7ab0b4da4e535",
   "img_signer_relpath": "sec-workspace/keys/IMG1_1_p256.pem",
   "cert_block_relpath": "sec-workspace/keys/IMG1_1_cert_block.bin",
-  "notes": "Non-secret registry only. CUST_MK_SK lives under secrets_root; fingerprint is SHA-256 of the 32-byte key."
+  "notes": "Non-secret registry only. CUST_MK_SK lives under secrets_root; fingerprint is SHA-256 of the 32-byte key.",
+  "mtls_server_cert_sha256": "4db71bb5023a6c9556a279e707926ce4e46714e1c7c023446a714765b9c4c29e"
 }

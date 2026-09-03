@@ -25,9 +25,19 @@ update_window_s = 180
 
 unit_name = "DEV-UNIT-01"
 
+[mtls]
+ca_cert = "C:/mcxn-secrets/mtls/ca/ca.crt"
+client_cert = "C:/mcxn-secrets/mtls/pcs/DEV-PC-01/client.crt"
+client_key = "C:/mcxn-secrets/mtls/pcs/DEV-PC-01/client.key"
+
 [paths]
 app = "firmware/app"
 mcuboot_example = "mcuxsdk/examples/ota_examples/mcuboot_opensource"
 ota_basic_example = "mcuxsdk/examples/ota_examples/ota_mcuboot_basic"
 imgtool = "mcuxsdk/middleware/mcuboot_opensource/scripts/imgtool.py"
 imgtool_key = "mcuxsdk/middleware/mcuboot_opensource/boot/nxp_mcux_sdk/keys/sign-ecdsa-p256-priv.pem"
+
+# Frozen MCUboot application-signing key (KEYHASH TLV). Not IMG1_1 (ROM/MBI).
+[mcuboot]
+imgtool_key_sha256 = "737072a311c92944a82b2db78e4a5fd487d86122c1ca19560a8e21b3d7491653"
+forbidden_img1_1_key_sha256 = "95e4e495d2fcc71c46b95853c6bf43f46d045afdfe1411b3020184ecdf3e2f46"

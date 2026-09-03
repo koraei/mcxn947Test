@@ -19,7 +19,8 @@ MCUboot (IFR 0x01008000, signed MBI 24 768 B)
 Application slot A  0x00080000  (1 MiB, imgtool-signed)
 Application slot B  0x00180000  (1 MiB, imgtool-signed, OTA target)
 
-OTA delivery: TCP:5555  [OTAS header][raw SB3.1 stream]
+OTA delivery: mTLS TCP:5555 → decrypt → [OTAS header][raw SB3.1 stream]
+Normal app:   mTLS TCP:5000 → decrypt → Hello/ECHO/STATUS plaintext
 ```
 
 ---
@@ -61,21 +62,29 @@ OTA delivery: TCP:5555  [OTAS header][raw SB3.1 stream]
 
 ---
 
+## Transport authentication (mTLS phase)
+
+- Mutual TLS (mbedTLS 3.x / PSA / ELS_PKC) on **both** `:5000` and `:5555`.
+- Application still sees decrypted plaintext (Hello / OTAS+SB3 unchanged).
+- SB3.1 + `CUST_MK_SK` remain mandatory for firmware authenticity/unit binding.
+- Dev CA + per-unit server cert + PC client cert live under `secrets_root/mtls/` (not in Git).
+- Host pins server cert SHA-256 (`units/*.json` → `mtls_server_cert_sha256`).
+- Application slot images are signed with `mcxn.toml` `imgtool_key` (MCUboot), **not** `IMG1_1` (ROM/MBI).
+
 ## Explicit non-claims (by design, not defects)
 
-- No TLS on update port (thin OTAS transport by design — see `docs/protocol-update.md`).
 - No automatic application-health rollback (DIRECT_XIP; no revert).
 - No NPX/PRINCE encryption.
 - Sidecar manifest is not a device-verified security object.
 - Lifecycle is `Develop`; debug/ISP access intentionally open.
 - No lifecycle advancement, no debug lock, no seal — outside current project scope.
+- Downgrade OTA (e.g. 2.0.0→1.0.0) is not a supported qualification path; use equal/newer version.
 
 ---
 
 ## What is NOT protected in current state
 
 - Physical MCU-Link SWD/JTAG access (debug open by design).
-- Ethernet traffic to TCP:5555 is unauthenticated at transport layer (application-layer SB3 auth only).
 
 ---
 

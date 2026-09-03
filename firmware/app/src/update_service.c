@@ -1,10 +1,11 @@
 /*
- * P5: TCP :5555 → thin header → raw SB3 stream → NXP sb3_api → ReadyForTest.
- * No TLS/HTTP/JSON/CBOR; crypto stays in SB3 + CUST_MK_SK.
+ * P5/M3: TCP :5555 → mTLS → OTAS header → raw SB3 → NXP sb3_api.
+ * OTAS/SB3 bytes are plaintext after TLS decrypt. Crypto stays in SB3 + CUST_MK_SK.
  */
 #include "update_service.h"
 #include "app_config.h"
 #include "diagnostics.h"
+#include "mtls_socket.h"
 
 #include "sb3_api.h"
 #include "mcuboot_app_support.h"
@@ -27,34 +28,15 @@ static void close_fd(int *fd)
     }
 }
 
-static void reply_err(int client, const char *msg)
+static void reply_err(mtls_session_t *s, const char *msg)
 {
-    (void)send(client, msg, (int)strlen(msg), 0);
+    (void)mtls_write_all(s, msg, strlen(msg), MTLS_IO_TIMEOUT_MS);
     g_update_failure_count++;
 }
 
-static int recv_exact(int fd, uint8_t *buf, size_t need)
+static int recv_exact(mtls_session_t *s, uint8_t *buf, size_t need, uint32_t timeout_ms)
 {
-    size_t got = 0;
-
-    while (got < need)
-    {
-        int n = recv(fd, (char *)buf + got, (int)(need - got), 0);
-        if (n <= 0)
-        {
-            return -1;
-        }
-        got += (size_t)n;
-    }
-    return 0;
-}
-
-static void set_recv_timeout_ms(int fd, int ms)
-{
-    struct timeval tv;
-    tv.tv_sec  = ms / 1000;
-    tv.tv_usec = (ms % 1000) * 1000;
-    (void)lwip_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    return mtls_read_exact(s, buf, need, timeout_ms);
 }
 
 /* Packed wire header (28 B). */
@@ -77,14 +59,22 @@ static int handle_update_session(int client)
     int sb3_inited         = 0;
     partition_t prt_ota;
     status_t st;
+    mtls_session_t session;
 
-    set_recv_timeout_ms(client, UPDATE_HDR_RECV_TO_MS);
-
-    if (recv_exact(client, hdr_raw, UPDATE_HDR_SIZE_B) != 0)
+    if (mtls_session_open(&session, client, MTLS_HANDSHAKE_TIMEOUT_MS) != 0)
     {
-        reply_err(client, "ERR TIMEOUT\n");
+        g_update_failure_count++;
+        g_mtls_session_abort++;
         return -1;
     }
+
+    if (recv_exact(&session, hdr_raw, UPDATE_HDR_SIZE_B, UPDATE_HDR_RECV_TO_MS) != 0)
+    {
+        reply_err(&session, "ERR TIMEOUT\n");
+        mtls_session_close(&session);
+        return -1;
+    }
+    g_update_tls_rx_bytes += UPDATE_HDR_SIZE_B;
 
     memcpy(&hdr.magic, &hdr_raw[0], 4);
     hdr.version = hdr_raw[4];
@@ -94,25 +84,29 @@ static int handle_update_session(int client)
 
     if (hdr.magic != UPDATE_HDR_MAGIC || hdr.version != UPDATE_HDR_VERSION)
     {
-        reply_err(client, "ERR MAGIC\n");
+        reply_err(&session, "ERR MAGIC\n");
+        mtls_session_close(&session);
         return -1;
     }
 
     if (memcmp(hdr.uuid, diagnostics_uuid_bytes(), 16) != 0)
     {
-        reply_err(client, "ERR UUID\n");
+        reply_err(&session, "ERR UUID\n");
+        mtls_session_close(&session);
         return -1;
     }
 
     if (hdr.sb3_len == 0u || hdr.sb3_len > UPDATE_SB3_MAX_B)
     {
-        reply_err(client, "ERR LEN\n");
+        reply_err(&session, "ERR LEN\n");
+        mtls_session_close(&session);
         return -1;
     }
 
     if (bl_get_update_partition_info(0, &prt_ota) != kStatus_Success)
     {
-        reply_err(client, "ERR IMAGE\n");
+        reply_err(&session, "ERR IMAGE\n");
+        mtls_session_close(&session);
         return -1;
     }
 
@@ -122,12 +116,12 @@ static int handle_update_session(int client)
     if (sb3_api_init() != kStatus_Success)
     {
         g_sb3_failure_count++;
-        reply_err(client, "ERR SB3\n");
+        reply_err(&session, "ERR SB3\n");
+        mtls_session_close(&session);
         return -1;
     }
     sb3_inited = 1;
 
-    set_recv_timeout_ms(client, UPDATE_STREAM_TO_MS);
     remaining = hdr.sb3_len;
 
     /* First 64 B enough for sb3_parse_header; then stream the rest. */
@@ -135,19 +129,22 @@ static int handle_update_session(int client)
         uint8_t first[64];
         size_t first_n = remaining < sizeof(first) ? remaining : sizeof(first);
 
-        if (recv_exact(client, first, first_n) != 0)
+        if (recv_exact(&session, first, first_n, UPDATE_STREAM_TO_MS) != 0)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
-            reply_err(client, "ERR TIMEOUT\n");
+            reply_err(&session, "ERR TIMEOUT\n");
+            mtls_session_close(&session);
             return -1;
         }
+        g_update_tls_rx_bytes += (uint32_t)first_n;
 
         if (!sb3_parse_header(first, &first_sb3_len) || first_sb3_len != hdr.sb3_len)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
-            reply_err(client, "ERR SB3\n");
+            reply_err(&session, "ERR SB3\n");
+            mtls_session_close(&session);
             return -1;
         }
 
@@ -156,7 +153,8 @@ static int handle_update_session(int client)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
-            reply_err(client, "ERR SB3\n");
+            reply_err(&session, "ERR SB3\n");
+            mtls_session_close(&session);
             return -1;
         }
         remaining -= (uint32_t)first_n;
@@ -167,21 +165,24 @@ static int handle_update_session(int client)
         size_t want = remaining > UPDATE_CHUNK_B ? UPDATE_CHUNK_B : remaining;
         int n;
 
-        n = recv(client, (char *)chunk, (int)want, 0);
+        n = mtls_read(&session, chunk, want, UPDATE_STREAM_TO_MS);
         if (n <= 0)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
-            reply_err(client, "ERR TIMEOUT\n");
+            reply_err(&session, "ERR TIMEOUT\n");
+            mtls_session_close(&session);
             return -1;
         }
+        g_update_tls_rx_bytes += (uint32_t)n;
 
         st = sb3_api_pump(chunk, (size_t)n);
         if (st != kStatus_Success)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
-            reply_err(client, "ERR SB3\n");
+            reply_err(&session, "ERR SB3\n");
+            mtls_session_close(&session);
             return -1;
         }
 
@@ -195,19 +196,22 @@ static int handle_update_session(int client)
 
     if (bl_verify_image(prt_ota.start, prt_ota.size) == 0)
     {
-        reply_err(client, "ERR IMAGE\n");
+        reply_err(&session, "ERR IMAGE\n");
+        mtls_session_close(&session);
         return -1;
     }
 
     if (bl_update_image_state(0, kSwapType_ReadyForTest) != kStatus_Success)
     {
-        reply_err(client, "ERR IMAGE\n");
+        reply_err(&session, "ERR IMAGE\n");
+        mtls_session_close(&session);
         return -1;
     }
 
-    (void)send(client, "OK\n", 3, 0);
+    (void)mtls_write_all(&session, "OK\n", 3, MTLS_IO_TIMEOUT_MS);
+    g_update_tls_tx_bytes += 3;
     g_update_success_count++;
-    PRINTF("Update OK — resetting\r\n");
+    PRINTF("Update OK - resetting\r\n");
     vTaskDelay(pdMS_TO_TICKS(UPDATE_OK_FLUSH_MS));
     NVIC_SystemReset();
     return 0; /* unreachable */
@@ -252,7 +256,7 @@ static void update_task(void *arg)
             continue;
         }
 
-        PRINTF("Update TCP listening on port %u (window remaining %lus)\r\n", (unsigned)UPDATE_TCP_PORT,
+        PRINTF("Update mTLS listening on port %u (window remaining %lus)\r\n", (unsigned)UPDATE_TCP_PORT,
                (unsigned long)diagnostics_update_window_remaining_s());
 
         while (diagnostics_update_window_remaining_s() > 0)
@@ -294,7 +298,7 @@ static void update_task(void *arg)
 
 void update_service_start(void)
 {
-    if (xTaskCreate(update_task, "update", 3072, NULL, tskIDLE_PRIORITY + 2, NULL) != pdPASS)
+    if (xTaskCreate(update_task, "update", 4096, NULL, tskIDLE_PRIORITY + 2, NULL) != pdPASS)
     {
         PRINTF("Update task create failed\r\n");
     }

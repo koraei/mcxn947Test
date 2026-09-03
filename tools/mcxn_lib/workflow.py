@@ -34,6 +34,8 @@ from . import (
     verify_cust_mk_sk_fingerprint,
     write_json,
 )
+from .imgtool_key import ImgtoolKeyError, assert_mcuboot_imgtool_key
+from .mtls import connect_mtls
 
 
 def cmd_doctor(cfg: dict) -> int:
@@ -175,6 +177,18 @@ def cmd_build(cfg: dict, target: str, version: str | None = None) -> int:
     core = cfg["core_id"]
 
     if target in ("v1", "v2", "v3"):
+        try:
+            assert_mcuboot_imgtool_key(cfg)
+        except ImgtoolKeyError as e:
+            print("BUILD FAIL:", e, file=sys.stderr)
+            return 1
+        gen = Path(r"C:/mcxn-secrets/mtls/generated/mtls_creds.c")
+        rc_gen = subprocess.call(
+            [sys.executable, str(ROOT / "tools" / "gen_mtls_creds_c.py"), "--out", str(gen)],
+        )
+        if rc_gen != 0:
+            print("mtls creds generate failed", rc_gen, file=sys.stderr)
+            return rc_gen
         app = ROOT / cfg["paths"]["app"]
         bdir = build_root / f"app_{target}"
         defs = variant_defs_path(cfg, target.upper(), version)
@@ -228,6 +242,7 @@ def cmd_build(cfg: dict, target: str, version: str | None = None) -> int:
 
 
 def sign_image(cfg: dict, raw_bin: Path, out_bin: Path, version: str, *, pad: bool, confirm: bool) -> None:
+    assert_mcuboot_imgtool_key(cfg)
     imgtool = imgtool_path(cfg)
     key = mcuboot_sign_key(cfg)
     cmd = [
@@ -374,8 +389,12 @@ def package_unit(
 
 def cmd_package(cfg: dict, unit_name: str, version: str, build_first: bool = False) -> int:
     try:
+        assert_mcuboot_imgtool_key(cfg)
         package_unit(cfg, unit_name, version, build_first=build_first)
         return 0
+    except ImgtoolKeyError as e:
+        print("PACKAGE FAIL:", e, file=sys.stderr)
+        return 1
     except Exception as e:
         print("PACKAGE FAIL:", e, file=sys.stderr)
         return 1
@@ -384,6 +403,7 @@ def cmd_package(cfg: dict, unit_name: str, version: str, build_first: bool = Fal
 def cmd_release(cfg: dict, unit_name: str, version: str) -> int:
     """build + package into dist/<unit>/<version>/ with technician README."""
     try:
+        assert_mcuboot_imgtool_key(cfg)
         unit = load_unit(unit_name)
         variant = variant_for_version(version)
         rc = cmd_build(cfg, variant.lower(), version=version)
@@ -457,10 +477,23 @@ def send_otas(cfg: dict, sb3: bytes, uuid_b: bytes, host: str | None = None, por
     hdr[4] = 1
     hdr[8:24] = uuid_b
     hdr[24:28] = len(sb3).to_bytes(4, "little")
+    cfg_net = dict(cfg)
+    if host:
+        cfg_net["board_ip"] = host
+    unit = None
     try:
-        with socket.create_connection((ip, p), timeout=10) as s:
+        unit = load_unit(cfg.get("unit_name", "DEV-UNIT-01"))
+    except FileNotFoundError:
+        unit = None
+    # Chunk TLS records: a single sendall(hdr+sb3) (~1 MiB) can abort the
+    # OpenSSL write with "EOF occurred in violation of protocol" against mbedTLS.
+    _TLS_CHUNK = 8 * 1024
+    try:
+        with connect_mtls(cfg_net, p, timeout=20, unit=unit) as s:
             s.settimeout(timeout)
-            s.sendall(bytes(hdr) + sb3)
+            s.sendall(bytes(hdr))
+            for off in range(0, len(sb3), _TLS_CHUNK):
+                s.sendall(sb3[off : off + _TLS_CHUNK])
             try:
                 resp = s.recv(128)
             except (TimeoutError, socket.timeout):

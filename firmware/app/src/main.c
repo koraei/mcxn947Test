@@ -4,6 +4,7 @@
 #include "diagnostics.h"
 #include "hello_service.h"
 #include "led_task.h"
+#include "mtls_socket.h"
 #include "update_service.h"
 
 #include "fsl_common.h"
@@ -59,6 +60,13 @@ static void main_thread(void *arg)
     if (initNetwork() != 0)
     {
         PRINTF("Network init failed\r\n");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    if (mtls_global_init() != 0)
+    {
+        PRINTF("mTLS init failed\r\n");
         vTaskDelete(NULL);
         return;
     }
