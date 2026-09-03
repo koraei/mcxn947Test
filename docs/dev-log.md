@@ -156,3 +156,7 @@ Owner changed USB port; `0x1FC9:0x014F` enumerated; blhost OK.
 
 Thin TCP `:5555` transport into NXP `sb3_api` (no TLS/HTTP/JSON/extra crypto). HW matrix PASS including V1→V2 over Ethernet, wrong-key/corrupt reject, 180 s window, late session, idle timeout, Hello resilience. See `docs/evidence/P5_ETHERNET_SB3_PROOF.md`, `docs/protocol-update.md`.
 
+## 2026-09-03 — P6 complete
+
+Host CLI is authoritative: `doctor` / `build` / `package` / `release` / `update`. Unit registry `units/DEV-UNIT-01.json`; artefacts under `dist/<unit>/<version>/` with sidecar (no secrets). Pytest 8/8. Live `UPDATE PASS` V1→V2 via packaged SB3. See `docs/evidence/P6_HOST_CLI_PROOF.md`. **Stopped before P7.**
+

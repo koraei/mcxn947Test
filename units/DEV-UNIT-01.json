@@ -4,12 +4,13 @@
   "board": "frdmmcxn947",
   "sdk": "26.06.00-LTS",
   "ip": "192.168.2.90",
-  "netmask": "255.255.255.0",
-  "gateway": "192.168.2.24",
   "hello_port": 5000,
   "update_port": 5555,
-  "probe_serial": "MNZW4VYTFX113",
-  "com_port": "COM9",
-  "sec_workspace_fingerprint": null,
-  "cust_mk_sk_fingerprint": null
+  "secrets_dirname": "DEV-UNIT-01",
+  "sec_workspace": "sec-workspace",
+  "cust_mk_sk_file": "cust_mk_sk.hex",
+  "cust_mk_sk_fingerprint": "fb954a586b2259ca427a7af70dcb91bb6035430e18fa49c3c0e7ab0b4da4e535",
+  "img_signer_relpath": "sec-workspace/keys/IMG1_1_p256.pem",
+  "cert_block_relpath": "sec-workspace/keys/IMG1_1_cert_block.bin",
+  "notes": "Non-secret registry only. CUST_MK_SK lives under secrets_root; fingerprint is SHA-256 of the 32-byte key."
 }

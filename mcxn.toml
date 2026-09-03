@@ -1,11 +1,13 @@
-# mcxn947 secure OTA host wrapper — thin CLI over NXP west/LinkServer tools
+# mcxn947 secure OTA host wrapper — thin CLI over NXP west/LinkServer/SPSDK tools
 
 sdk_root = "C:/mcxn/mcuxsdk-ws"
 sdk_mcux = "C:/mcxn/mcuxsdk-ws/mcuxsdk"
 armgcc_dir = "C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.3 rel1"
 linkserver = "C:/nxp/LinkServer_25.6.131/LinkServer.exe"
+securep = "C:/nxp/SEC_Provi_26.06/bin/securep.exe"
 build_root = "C:/mcxn/builds"
 secrets_root = "C:/mcxn-secrets"
+dist_root = "dist"
 
 board = "frdmmcxn947"
 core_id = "cm33_core0"
@@ -28,3 +30,4 @@ app = "firmware/app"
 mcuboot_example = "mcuxsdk/examples/ota_examples/mcuboot_opensource"
 ota_basic_example = "mcuxsdk/examples/ota_examples/ota_mcuboot_basic"
 imgtool = "mcuxsdk/middleware/mcuboot_opensource/scripts/imgtool.py"
+imgtool_key = "mcuxsdk/middleware/mcuboot_opensource/boot/nxp_mcux_sdk/keys/sign-ecdsa-p256-priv.pem"

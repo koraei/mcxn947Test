@@ -1,7 +1,7 @@
 # Device state — FRDM-MCXN947
 
 **Last updated:** 2026-09-03  
-**Phase:** P5 complete — Ethernet SB3 OTA proven
+**Phase:** P6 complete — host CLI/release proven; **stop before P7**
 
 ## Probe
 

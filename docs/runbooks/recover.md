@@ -47,16 +47,18 @@ LinkServer flash -p MNZW4VYTFX113 MCXN947:FRDM load C:\mcxn\builds\app_v1\app_v1
 
 Or standalone P2 image (no MCUboot header) only after clearing `BOOT_SRC` / restoring pre-P3 CMPA.
 
-## Ethernet SB3 update (P5)
+## Ethernet SB3 update (P5/P6)
 
 ```text
 cd c:\temp\mcxn947Test
 python tools/mcxn.py status
-python tools/mcxn.py update --sb3 C:\mcxn-secrets\DEV-UNIT-01\sec-workspace\ota_images\ota_sb_product_v2_pad.sb
+python tools/mcxn.py update --sb3 dist/DEV-UNIT-01/2.0.0/DEV-UNIT-01_2.0.0_V2.sb3
 python tools/mcxn.py status   # expect variant=V2
 ```
 
-Protocol: `docs/protocol-update.md`. New accepts only in first 180 s after app start.
+Technician flow: `docs/runbooks/technician-update.md`.  
+Release packaging: `docs/runbooks/release.md`.  
+Protocol: `docs/protocol-update.md` (OTAS). New accepts only in first 180 s after app start.
 
 ## VCOM TX tool issue
 
