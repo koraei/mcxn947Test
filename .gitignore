@@ -1,0 +1,39 @@
+# Git ignore for mcxn947 secure OTA prototype
+
+/build/
+/dist/
+*.o
+*.elf
+*.axf
+*.map
+*.bin
+*.hex
+*.srec
+*.sb
+*.sb3
+*.sbke
+*.sb21
+
+# Local secrets / SEC workspaces (never commit)
+/secrets/
+*.pem
+*.key
+!**/sign-pub*.pem
+!**/root_keks_dummy*
+
+# Tooling caches
+.west/
+__pycache__/
+.pytest_cache/
+.vscode/.mcuxpresso*
+*.vsix
+
+# Host logs / evidence large binaries
+docs/evidence/**/*.bin
+docs/evidence/**/*.elf
+docs/evidence/**/*.sb*
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

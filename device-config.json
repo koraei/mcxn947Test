@@ -1,0 +1,112 @@
+{
+  "copyright": "Copyright 2026 NXP",
+  "license": "SPDX-License-Identifier: BSD-3-Clause",
+  "version": "1.1.0",
+  "vendor": "NXP",
+  "devices": [
+    {
+      "board": "FRDM-MCXN947",
+      "device": {
+        "id": "MCXN947",
+        "name": "MCXN947",
+        "family": "MCXN9XX",
+        "memory": [
+          {
+            "location": "0x00000000",
+            "size": "0x00100000",
+            "type": "Flash",
+            "flash-driver": "MCXNxxx.cfx"
+          },
+          {
+            "location": "0x10000000",
+            "size": "0x00100000",
+            "type": "Flash",
+            "flash-driver": "MCXNxxx_S.cfx"
+          },
+          {
+            "location": "0x00100000",
+            "size": "0x00100000",
+            "type": "Flash",
+            "flash-driver": "MCXNxxx.cfx"
+          },
+          {
+            "location": "0x10100000",
+            "size": "0x00100000",
+            "type": "Flash",
+            "flash-driver": "MCXNxxx_S.cfx"
+          },
+          {
+            "location": "0x20000000",
+            "size": "0x00060000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x04000000",
+            "size": "0x00018000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x20060000",
+            "size": "0x00008000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x400ba000",
+            "size": "0x00001000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x80000000",
+            "size": "0x00800000",
+            "type": "ExtFlash",
+            "flash-driver": "MCXN9xx_SFDP_FlexSPI.cfx"
+          },
+          {
+            "location": "0x90000000",
+            "size": "0x00800000",
+            "type": "ExtFlash",
+            "flash-driver": "MCXN9xx_SFDP_FlexSPI_S.cfx"
+          },
+          {
+            "location": "0x30000000",
+            "size": "0x00060000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x14000000",
+            "size": "0x00018000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x30060000",
+            "size": "0x00008000",
+            "type": "RAM"
+          },
+          {
+            "location": "0x500BA000",
+            "size": "0x00001000",
+            "type": "RAM"
+          }
+        ],
+        "cores": [
+          {
+            "type": "cm33",
+            "name": "cm33_core0",
+            "primary": true
+          },
+          {
+            "type": "cm33_nodsp",
+            "name": "cm33_core1"
+          }
+        ]
+      },
+      "debug": {
+        "protocol": "swd",
+        "swo": true,
+        "bootromstall": "0x50000040",
+        "romstalldelay": 600,
+        "preconnect-script": "LS_preconnect_MCXN9XX.scp"
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+# mcxn947 secure OTA host wrapper — thin CLI over NXP west/LinkServer tools
+
+sdk_root = "C:/mcxn/mcuxsdk-ws"
+sdk_mcux = "C:/mcxn/mcuxsdk-ws/mcuxsdk"
+armgcc_dir = "C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.3 rel1"
+linkserver = "C:/nxp/LinkServer_25.6.131/LinkServer.exe"
+build_root = "C:/mcxn/builds"
+secrets_root = "C:/mcxn-secrets"
+
+board = "frdmmcxn947"
+core_id = "cm33_core0"
+probe_serial = "MNZW4VYTFX113"
+com_port = "COM9"
+baud = 115200
+
+# Product network policy (do not change PC NIC)
+board_ip = "192.168.2.90"
+board_netmask = "255.255.255.0"
+board_gateway = "192.168.2.24"
+hello_port = 5000
+update_port = 5555
+update_window_s = 180
+
+unit_name = "DEV-UNIT-01"
+
+[paths]
+app = "firmware/app"
+mcuboot_example = "mcuxsdk/examples/ota_examples/mcuboot_opensource"
+ota_basic_example = "mcuxsdk/examples/ota_examples/ota_mcuboot_basic"
+imgtool = "mcuxsdk/middleware/mcuboot_opensource/scripts/imgtool.py"

@@ -1,0 +1,16 @@
+
+=== MCXN947 Secure OTA prototype ===
+UUID=9DA8D48D0DDCD755903E8FBD3836C153
+App V1 version=1.0.0
+Initializing PHY...
+LED task start variant=V1 on=500 off=500
+
+************************************************
+MCXN947 Secure OTA prototype
+************************************************
+ IPv4 Address     : 192.168.0.102
+ IPv4 Subnet mask : 255.255.255.0
+ IPv4 Gateway     : 192.168.0.100
+************************************************
+Hello TCP listening on port 5000
+Update TCP listening on port 5555 (window remaining 177s)

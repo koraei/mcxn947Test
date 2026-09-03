@@ -1,0 +1,15 @@
+{
+  "unit_name": "DEV-UNIT-01",
+  "mcu_uuid": "9DA8D48D0DDCD755903E8FBD3836C153",
+  "board": "frdmmcxn947",
+  "sdk": "26.06.00-LTS",
+  "ip": "192.168.2.90",
+  "netmask": "255.255.255.0",
+  "gateway": "192.168.2.24",
+  "hello_port": 5000,
+  "update_port": 5555,
+  "probe_serial": "MNZW4VYTFX113",
+  "com_port": "COM9",
+  "sec_workspace_fingerprint": null,
+  "cust_mk_sk_fingerprint": null
+}

@@ -1,0 +1,29 @@
+ota_mcuboot_server_enet:
+  boards:
+    frdmmcxn947@cm33_core0:
+    - -mdk@debug
+    - -mdk@release
+  contents:
+    document:
+      brief: This ota_mcuboot_server application demonstrates OTA using an HTTP server
+        based on lwIP TCP/IP stack with FreeRTOS. The user uses an Internet browser
+        to upload new update package to reprogram application running on the board.
+      category: ota_examples
+      example_readme:
+      - examples/ota_examples/ota_mcuboot_server/enet/readme.md
+      - ${board_root}/${board}/ota_examples/ota_mcuboot_server/enet/example_board_readme.md
+      - ${board_root}/${board}/examples_shared_readme.md
+      name: ota_mcuboot_server_enet${core_id_suffix_name}
+    meta_path: examples/ota_examples/ota_mcuboot_server/enet
+    project-root-path: boards/${board}/ota_examples/ota_mcuboot_server/enet/${multicore_foldername}
+  section-type: freestanding_application
+ota_mcuboot_server_enet@mcxn_encrypted_xip:
+  boards:
+    frdmmcxn947@cm33_core0:
+    - -mdk@release
+    - -mdk@debug
+  contents:
+    document:
+      extra_build_args:
+      - -DCONF_FILE=ota_mcuboot_server_enet.conf
+  section-type: freestanding_application
