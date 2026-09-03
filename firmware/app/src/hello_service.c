@@ -48,8 +48,24 @@ static void handle_client(int client)
 
     if ((n == 10) && (strncmp(buf, "Hello MCXN", 10) == 0))
     {
-        const char *reply = "Hello PC!\n";
+        const char *reply = APP_HELLO_REPLY "\n";
         (void)send(client, reply, (int)strlen(reply), 0);
+    }
+    else if ((n >= 4) && (strncmp(buf, "ECHO", 4) == 0))
+    {
+        const char *payload = "";
+        char reply[HELLO_MAX_REQ_B + 24];
+        int len;
+
+        if ((n > 5) && (buf[4] == ' '))
+        {
+            payload = &buf[5];
+        }
+        len = snprintf(reply, sizeof(reply), "ECHO %s %s\n", APP_VARIANT, payload);
+        if (len > 0)
+        {
+            (void)send(client, reply, len, 0);
+        }
     }
     else if ((n >= 6) && (strncmp(buf, "STATUS", 6) == 0))
     {

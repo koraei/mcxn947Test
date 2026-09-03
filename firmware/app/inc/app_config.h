@@ -21,6 +21,10 @@
 #define APP_LED_OFF_MS 500
 #endif
 
+#ifndef APP_HELLO_REPLY
+#define APP_HELLO_REPLY "Hello PC!"
+#endif
+
 #define HELLO_TCP_PORT   5000
 #define UPDATE_TCP_PORT  5555
 #define UPDATE_WINDOW_S  180

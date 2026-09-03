@@ -6,14 +6,37 @@
 #include "led_task.h"
 #include "update_service.h"
 
+#include "fsl_common.h"
 #include "fsl_debug_console.h"
 #include "mflash_drv.h"
 
 #include "lwip/tcpip.h"
 #include "lwip/sys.h"
+#include "mcuboot_app_support.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
+
+static void confirm_image_if_testing(void)
+{
+    uint32_t imgstate = 0;
+
+    if (bl_get_image_state(0, &imgstate) != kStatus_Success)
+    {
+        return;
+    }
+    if (imgstate == kSwapType_Testing)
+    {
+        if (bl_update_image_state(0, kSwapType_Permanent) == kStatus_Success)
+        {
+            PRINTF("MCUboot image confirmed (was Testing)\r\n");
+        }
+        else
+        {
+            PRINTF("MCUboot confirm failed\r\n");
+        }
+    }
+}
 
 int initNetwork(void);
 
@@ -29,6 +52,7 @@ static void main_thread(void *arg)
     diagnostics_init();
 
     PRINTF("App %s version=%s\r\n", APP_VARIANT, APP_VERSION_STRING);
+    confirm_image_if_testing();
 
     led_task_start();
 

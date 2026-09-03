@@ -224,6 +224,21 @@ def fetch_hello(cfg: dict, timeout: float = 5.0, host: str | None = None, port: 
         return s.recv(128).decode("utf-8", "replace").strip()
 
 
+def fetch_echo(
+    cfg: dict,
+    payload: str = "ping",
+    timeout: float = 5.0,
+    host: str | None = None,
+    port: int | None = None,
+) -> str:
+    ip = host or cfg["board_ip"]
+    p = int(port if port is not None else cfg["hello_port"])
+    msg = f"ECHO {payload}\n".encode("ascii")
+    with socket.create_connection((ip, p), timeout=timeout) as s:
+        s.sendall(msg)
+        return s.recv(128).decode("utf-8", "replace").strip()
+
+
 def load_manifest(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -234,11 +249,13 @@ def write_json(path: Path, obj: Any) -> None:
 
 
 def variant_for_version(version: str) -> str:
-    """Map semver major to V1/V2 product variants used by firmware defs."""
+    """Map semver major to V1/V2/V3 product variants used by firmware defs."""
     major = int(version.split(".")[0])
     if major <= 1:
         return "V1"
-    return "V2"
+    if major == 2:
+        return "V2"
+    return "V3"
 
 
 def find_app_bin(build_dir: Path) -> Path:

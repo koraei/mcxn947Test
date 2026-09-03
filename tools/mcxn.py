@@ -16,15 +16,14 @@ _TOOLS = Path(__file__).resolve().parent
 if str(_TOOLS) not in sys.path:
     sys.path.insert(0, str(_TOOLS))
 
-from mcxn_lib import load_cfg  # noqa: E402
+from mcxn_lib import fetch_echo, fetch_hello, fetch_status, load_cfg  # noqa: E402
 from mcxn_lib.workflow import (  # noqa: E402
     cmd_build,
     cmd_doctor,
     cmd_package,
     cmd_release,
+    cmd_reset,
     cmd_update,
-    fetch_hello,
-    fetch_status,
     run,
 )
 
@@ -34,6 +33,7 @@ def cmd_flash(cfg: dict, target: str) -> int:
     mapping = {
         "v1": build_root / "app_v1",
         "v2": build_root / "app_v2",
+        "v3": build_root / "app_v3",
         "mcuboot": build_root / "mcuboot_opensource",
     }
     bdir = mapping.get(target)
@@ -75,18 +75,21 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("doctor", help="Verify toolchain, board, ping, Hello/STATUS")
 
-    b = sub.add_parser("build", help="Build V1/V2/MCUboot reproducibly")
-    b.add_argument("target", choices=["v1", "v2", "mcuboot"])
-    b.add_argument("--version", default=None, help="APP_VERSION_STRING override (v1/v2)")
+    b = sub.add_parser("build", help="Build V1/V2/V3/MCUboot reproducibly")
+    b.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
+    b.add_argument("--version", default=None, help="APP_VERSION_STRING override (v1/v2/v3)")
 
     f = sub.add_parser("flash", help="west flash via LinkServer")
-    f.add_argument("target", choices=["v1", "v2", "mcuboot"])
+    f.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
 
     s = sub.add_parser("serial", help="Read VCOM (RX); TX may fail on this probe")
     s.add_argument("--seconds", type=float, default=10.0)
 
     sub.add_parser("hello")
     sub.add_parser("status")
+    sub.add_parser("reset", help="MCU-Link reset via LinkServer")
+    e = sub.add_parser("echo", help="Send ECHO on Hello TCP :5000")
+    e.add_argument("payload", nargs="?", default="ping")
 
     pkg = sub.add_parser("package", help="Sign + unit SB3 + sidecar manifest (no secrets in dist)")
     pkg.add_argument("--unit", default=cfg.get("unit_name", "DEV-UNIT-01"))
@@ -136,6 +139,15 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as e:
             print(e, file=sys.stderr)
             return 1
+    if args.cmd == "echo":
+        try:
+            print(fetch_echo(cfg, args.payload))
+            return 0
+        except OSError as e:
+            print(e, file=sys.stderr)
+            return 1
+    if args.cmd == "reset":
+        return cmd_reset(cfg)
     if args.cmd == "package":
         return cmd_package(cfg, args.unit, args.version, build_first=args.build)
     if args.cmd == "release":

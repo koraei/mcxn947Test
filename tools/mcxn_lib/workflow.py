@@ -13,6 +13,7 @@ from pathlib import Path
 from . import (
     ROOT,
     env_for_build,
+    fetch_echo,
     fetch_hello,
     fetch_status,
     find_app_bin,
@@ -109,20 +110,45 @@ def cmd_doctor(cfg: dict) -> int:
     return 0
 
 
+def cmd_reset(cfg: dict) -> int:
+    ls = Path(cfg["linkserver"])
+    probe = cfg.get("probe_serial")
+    if not probe:
+        print("RESET FAIL: no probe_serial")
+        return 1
+    # Hardware nRESET via MCU-Link (LinkServer has no top-level `reset` command)
+    return run([str(ls), "probe", probe, "wiretimedreset", "100"], cfg)
+
+
 def variant_defs_path(cfg: dict, variant: str, version: str | None = None) -> Path:
     build_root = Path(cfg["build_root"])
     build_root.mkdir(parents=True, exist_ok=True)
     path = build_root / f"app_{variant.lower()}_defs.h"
-    ver = version or ("2.0.0" if variant.upper() == "V2" else "1.0.0")
+    v = variant.upper()
+    defaults = {"V1": "1.0.0", "V2": "2.0.0", "V3": "3.0.0"}
+    ver = version or defaults.get(v, "1.0.0")
     ip = cfg["board_ip"]
     mask = cfg.get("board_netmask", "255.255.255.0")
     gw = cfg.get("board_gateway", "192.168.2.24")
-    if variant.upper() == "V2":
+    if v == "V3":
+        body = f"""#define APP_VARIANT \"V3\"
+#define APP_VERSION_STRING \"{ver}\"
+#define APP_VARIANT_IS_V3 1
+#define APP_LED_COLOR_ID 3
+#define APP_LED_ON_MS 80
+#define APP_LED_OFF_MS 720
+#define APP_HELLO_REPLY \"Hello PC! V3-PULSE-RED\"
+#define IP_ADDR \"{ip}\"
+#define IP_MASK \"{mask}\"
+#define GW_ADDR \"{gw}\"
+"""
+    elif v == "V2":
         body = f"""#define APP_VARIANT \"V2\"
 #define APP_VERSION_STRING \"{ver}\"
 #define APP_VARIANT_IS_V2 1
 #define APP_LED_ON_MS 125
 #define APP_LED_OFF_MS 125
+#define APP_HELLO_REPLY \"Hello PC! V2-FAST-BLUE\"
 #define IP_ADDR \"{ip}\"
 #define IP_MASK \"{mask}\"
 #define GW_ADDR \"{gw}\"
@@ -132,6 +158,7 @@ def variant_defs_path(cfg: dict, variant: str, version: str | None = None) -> Pa
 #define APP_VERSION_STRING \"{ver}\"
 #define APP_LED_ON_MS 500
 #define APP_LED_OFF_MS 500
+#define APP_HELLO_REPLY \"Hello PC! V1-SLOW-GREEN\"
 #define IP_ADDR \"{ip}\"
 #define IP_MASK \"{mask}\"
 #define GW_ADDR \"{gw}\"
@@ -147,7 +174,7 @@ def cmd_build(cfg: dict, target: str, version: str | None = None) -> int:
     board = cfg["board"]
     core = cfg["core_id"]
 
-    if target in ("v1", "v2"):
+    if target in ("v1", "v2", "v3"):
         app = ROOT / cfg["paths"]["app"]
         bdir = build_root / f"app_{target}"
         defs = variant_defs_path(cfg, target.upper(), version)
@@ -582,6 +609,22 @@ def cmd_update(
     print("Hello:", hello)
     if "Hello PC!" not in hello:
         print("UPDATE FAIL: Hello mismatch")
+        return 1
+    if expect_variant and expect_variant.upper() not in hello.upper():
+        print("UPDATE FAIL: Hello does not contain variant", expect_variant)
+        return 1
+
+    try:
+        echo = fetch_echo(cfg, f"e2e-{expect_variant or 'X'}", timeout=5)
+    except OSError as e:
+        print("UPDATE FAIL: ECHO after update:", e)
+        return 1
+    print("Echo:", echo)
+    if not echo.startswith("ECHO"):
+        print("UPDATE FAIL: ECHO mismatch")
+        return 1
+    if expect_variant and expect_variant.upper() not in echo.upper():
+        print("UPDATE FAIL: ECHO missing variant", expect_variant)
         return 1
 
     print("UPDATE PASS")

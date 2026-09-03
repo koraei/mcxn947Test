@@ -13,9 +13,14 @@
 #ifndef APP_LED_COLOR_BLUE
 #define APP_LED_COLOR_BLUE 2
 #endif
+#ifndef APP_LED_COLOR_RED
+#define APP_LED_COLOR_RED 3
+#endif
 
 #if !defined(APP_LED_COLOR_ID)
-#if defined(APP_VARIANT_IS_V2)
+#if defined(APP_VARIANT_IS_V3)
+#define APP_LED_COLOR_ID APP_LED_COLOR_RED
+#elif defined(APP_VARIANT_IS_V2)
 #define APP_LED_COLOR_ID APP_LED_COLOR_BLUE
 #else
 #define APP_LED_COLOR_ID APP_LED_COLOR_GREEN
@@ -39,18 +44,27 @@ static void led_task(void *arg)
 
     for (;;)
     {
-#if (APP_LED_COLOR_ID == APP_LED_COLOR_BLUE)
+#if (APP_LED_COLOR_ID == APP_LED_COLOR_RED)
+        /* Double-pulse heartbeat */
+        LED_RED_ON();
+        vTaskDelay(pdMS_TO_TICKS(APP_LED_ON_MS));
+        LED_RED_OFF();
+        vTaskDelay(pdMS_TO_TICKS(APP_LED_ON_MS));
+        LED_RED_ON();
+        vTaskDelay(pdMS_TO_TICKS(APP_LED_ON_MS));
+        LED_RED_OFF();
+        vTaskDelay(pdMS_TO_TICKS(APP_LED_OFF_MS));
+#elif (APP_LED_COLOR_ID == APP_LED_COLOR_BLUE)
         LED_BLUE_ON();
+        vTaskDelay(pdMS_TO_TICKS(APP_LED_ON_MS));
+        LED_BLUE_OFF();
+        vTaskDelay(pdMS_TO_TICKS(APP_LED_OFF_MS));
 #else
         LED_GREEN_ON();
-#endif
         vTaskDelay(pdMS_TO_TICKS(APP_LED_ON_MS));
-#if (APP_LED_COLOR_ID == APP_LED_COLOR_BLUE)
-        LED_BLUE_OFF();
-#else
         LED_GREEN_OFF();
-#endif
         vTaskDelay(pdMS_TO_TICKS(APP_LED_OFF_MS));
+#endif
     }
 }
 
