@@ -1,6 +1,6 @@
 # Toolchain lock
 
-**Recorded:** 2026-09-03 (P6 refresh)  
+**Recorded:** 2026-09-03 (P7 freeze — architecture frozen, no further security writes planned)  
 **Plan baseline:** MCUXpresso SDK v26.06.00-LTS, SEC 26.06 / SPSDK 3.10.0, GCC 14.x family
 
 | Tool | Version / path | Notes |
@@ -30,3 +30,8 @@ Config: `mcxn.toml`. Secrets: `C:\mcxn-secrets\`. Unit registry: `units/`.
 1. Host GCC is **14.3.x**, not 14.2.x.
 2. Wire protocol is **OTAS** (P5), not draft `MCXNUP1`.
 3. LinkServer **25.6.131** (not a 26.06-branded package).
+
+## Frozen security state (post-P7)
+
+ROM secure boot active: `SEC_BOOT_EN = ECDSA_SIGNED`, `ROTKH = 670EE45ABA…`.
+CUST_MK_SK provisioned. Lifecycle = Develop. No further security writes in scope.

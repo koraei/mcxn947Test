@@ -1,22 +1,92 @@
-# Security design (lean)
+# Security design — FRDM-MCXN947 Secure Ethernet OTA
 
-## Protected by NXP (target end-state)
-- MCUboot ECDSA-P256 image signature
-- SB3.1 confidentiality/authentication with per-unit `CUST_MK_SK`
-- Host UUID check before transfer (operator safety, not crypto)
+**Status:** Architecture frozen as of P7 (2026-09-03). No further security writes planned.
+
+---
+
+## Boot chain (proven, frozen)
+
+```
+NXP ROM (immutable)
+  │  reads CMPA → BOOT_SRC=SECONDARY_BOOTLOADER, SEC_BOOT_EN=ECDSA_SIGNED
+  │  reads MBI from IFR (0x01008000, 32 KB slot)
+  │  verifies ECDSA-P256 signature; RKTH in cert block must match CMPA.ROTKH
+  ▼
+MCUboot (IFR 0x01008000, signed MBI 24 768 B)
+  │  processes SB3.1 OTA package from inactive app slot
+  │  authenticates SB3 with per-unit CUST_MK_SK (AES-CBC-MAC)
+  ▼
+Application slot A  0x00080000  (1 MiB, imgtool-signed)
+Application slot B  0x00180000  (1 MiB, imgtool-signed, OTA target)
+
+OTA delivery: TCP:5555  [OTAS header][raw SB3.1 stream]
+```
+
+---
+
+## Security state (DEV-UNIT-01, post-P7)
+
+| Property | Value | Set at |
+|----------|-------|--------|
+| `BOOT_SRC` | `SECONDARY_BOOTLOADER (0b10)` | P3 |
+| `SEC_BOOT_EN` | **`ECDSA_SIGNED`** — ROM auth ON | P3 |
+| `ROTKH` | `670EE45ABA45117A081A87D82AC4F079241F98B3170053888F63C5B69E05457F` | P3 |
+| RoT key | ROT1_p256 (ECDSA-P256); one active slot | P3 |
+| Image signing key | IMG1_1_p256 (ECDSA-P256), certified by ROT1 | P3 |
+| `CUST_MK_SK` | 32-byte AES key, per-unit unique; stored in CMPA blob | P4 |
+| `CUST_MK_SK` fingerprint | `fb954a586b2259ca427a7af70dcb91bb6035430e18fa49c3c0e7ab0b4da4e535` | P4 |
+| Lifecycle | **`Develop`** — SWD/DAP open, ISP recovery available | P3 |
+| Debug (CC_SOCU_PIN) | All `USE_DAP` | P3 |
+| NPX/PRINCE | Disabled (all context words = 0) | P3 |
+| UUID_CHECK | Disabled | P3 |
+| Key revocation (CFPA) | `IMAGE_KEY_REVOKE = 0` — no revocations | — |
+| IFR MCUboot slot | Hardware read-protected (`OEM_ROM_RWXL_CODE`) | P3 |
+
+---
+
+## OTA update security (P4 / P5 / P6)
+
+- SB3.1 package authenticated by `CUST_MK_SK` inside the NXP ROM crypto subsystem.
+- Wrong-key SB3 rejected by `sb3_api` before any flash write.
+- Corrupt SB3 rejected; slot not marked ready-for-test.
+- 180-second update window: new sessions refused after window closes.
+- Device UUID checked in OTAS header before SB3 streaming begins (host preflight + firmware guard).
 
 ## Host packaging (P6)
-- Unit registry (`units/*.json`) stores UUID + `cust_mk_sk_fingerprint` only
-- `dist/<unit>/<version>/` contains SB3 + sidecar manifest + technician README — **never** keys/PEM/hex
-- Sidecar SHA-256 binds the technician package to release metadata (git commit, tool versions)
-- Device rejects wrong-unit SB3 via ROM/`CUST_MK_SK` even if a host check is bypassed (`--bypass-uuid-check` is test-only)
 
-## Not protected in current Develop/debug-open state
-- MCU-Link debug access
-- No ROM secure boot of MCUboot until P7
-- No TLS on update port (by design)
+- Unit registry (`units/*.json`) stores UUID + `cust_mk_sk_fingerprint` only — never keys/PEM/hex.
+- `dist/<unit>/<version>/` contains SB3 + sidecar manifest + technician README — no secrets.
+- Sidecar SHA-256 binds the technician package to git commit + tool versions.
+- Wrong-unit SB3 rejected by ROM/`CUST_MK_SK` even if host UUID check is bypassed.
 
-## Explicit non-claims
-- No automatic application-health rollback (DIRECT_XIP has no revert)
-- No NPX/PRINCE, no custom crypto formats
-- Sidecar is not a device-verified security object
+---
+
+## Explicit non-claims (by design, not defects)
+
+- No TLS on update port (thin OTAS transport by design — see `docs/protocol-update.md`).
+- No automatic application-health rollback (DIRECT_XIP; no revert).
+- No NPX/PRINCE encryption.
+- Sidecar manifest is not a device-verified security object.
+- Lifecycle is `Develop`; debug/ISP access intentionally open.
+- No lifecycle advancement, no debug lock, no seal — outside current project scope.
+
+---
+
+## What is NOT protected in current state
+
+- Physical MCU-Link SWD/JTAG access (debug open by design).
+- Ethernet traffic to TCP:5555 is unauthenticated at transport layer (application-layer SB3 auth only).
+
+---
+
+## Evidence documents
+
+| Phase | Evidence |
+|-------|---------|
+| P3 — CMPA/IFR provisioning | `docs/evidence/P3_CMPA_IFR_PROOF.md` |
+| P4 — CUST_MK_SK + SB3 signing | (sec-workspace logs) |
+| P5 — Ethernet SB3 OTA hardware matrix | `docs/evidence/P5_ETHERNET_SB3_PROOF.md` |
+| P6 — Host CLI + packaging | `docs/evidence/P6_HOST_CLI_PROOF.md` |
+| P7 — ROM secure boot gate report | `docs/evidence/P7_ROM_SECBOOT_GATE_REPORT.md` |
+
+*Last updated: 2026-09-03 (P7 approved, architecture frozen)*
