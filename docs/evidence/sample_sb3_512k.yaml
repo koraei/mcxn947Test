@@ -1,0 +1,8 @@
+family: mcxn947
+commands:
+  - erase:
+      address: 0x00100000
+      size: 0x00080000
+  - load:
+      address: 0x00100000
+      file: dummy.bin

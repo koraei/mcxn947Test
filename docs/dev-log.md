@@ -255,3 +255,30 @@ Soak stopped (owner). Baseline debug V3 ~786 KiB text. Dual-slot smoke PASS. E
 `LEAN_PROD_TEST`: mbedtls USER_CONFIG allow-list + `-Os` → **~309 KiB text** (fits ≤448 KiB / 512 KiB gates). Hello/ECHO/STATUS + M2 negatives PASS on hardware. Evidence: `docs/evidence/M1_LEAN_SIZE_GATE.md`.  
 CMPA/remap **not** touched.
 
+## 2026-09-04 — M1 validation complete (frozen lean); M2 build-only; M3 host journal; PRE-CMPA STOP
+
+### M1 (frozen — no further mbedTLS size cuts)
+- Lean SB3 OTA 3.0.0→3.1.0 PASS; corrupt reject PASS.
+- 1000 reconnect PASS; fault + mid-session interrupt PASS.
+- Throughput sample lean+QA ~60 s: **98.2 KB/s** (≥95% of 100 KB/s target) — `M1_LEAN_THROUGHPUT.md`.
+- Consecutive lean rebuild SHA match — `M1_lean_rebuild_hash.json`.
+- Sizes: text **308 512**; unpadded signed **310 032**; padded 512 KiB file **524 288** (pad ≠ usage).
+- DER skipped (optional). IPv6 compile OK; on-wire LL ping still needs operator/UART LL.
+- Link NIC script still Access-denied; manual cable open.
+
+### M2 (build-only)
+- `memory_layout.h` 512 KiB slots + shared pools; `mcxn10_cm33_flash_512k.ld`; `--layout512`.
+- Link proof: `m_text` ~307 KiB / 502 KiB region (~60%).
+- OTA/SB3 range guards + `check_sb3_layout.py`.
+- **No CMPA write.**
+
+### M3 host journal
+- `tools/runhours_host_model.py` + fault matrix **13/13 PASS** — `M3_RUNHOURS_HOST.md`.
+- Device module stubbed until post-remap.
+
+### Board NOW
+Lean product **3.1.0** both slots (non-QA). Hello/STATUS OK.
+
+### STOP
+`docs/evidence/PRE_CMPA_OWNER_GATE.md` — owner approval required before `FLASH_REMAP_SIZE=15`.
+

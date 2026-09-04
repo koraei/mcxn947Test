@@ -183,6 +183,7 @@ def cmd_build(
     *,
     qa: bool = False,
     lean: bool = False,
+    layout512: bool = False,
 ) -> int:
     sdk = Path(cfg["sdk_root"])
     build_root = Path(cfg["build_root"])
@@ -204,15 +205,16 @@ def cmd_build(
             print("mtls creds generate failed", rc_gen, file=sys.stderr)
             return rc_gen
         app = ROOT / cfg["paths"]["app"]
-        if qa and lean:
-            print("BUILD FAIL: --qa and --lean are mutually exclusive", file=sys.stderr)
-            return 2
+        suffix = ""
+        if lean:
+            suffix += "_lean"
+        if layout512:
+            suffix += "_512k"
         if qa:
-            bdir = build_root / f"app_{target}_qa"
-        elif lean:
-            bdir = build_root / f"app_{target}_lean"
-        else:
-            bdir = build_root / f"app_{target}"
+            suffix += "_qa"
+        bdir = build_root / f"app_{target}{suffix}" if suffix else build_root / f"app_{target}"
+        if layout512 and not lean:
+            print("BUILD NOTE: APP_FLASH_LAYOUT_512K without --lean (debug size may exceed slot)", flush=True)
         defs = variant_defs_path(cfg, target.upper(), version)
         extra = f"-include {defs.as_posix()}"
         if qa:
@@ -247,6 +249,8 @@ def cmd_build(
         ]
         if lean:
             cmd.append("--cmake-opt=-DLEAN_PROD=1")
+        if layout512:
+            cmd.append("--cmake-opt=-DAPP_FLASH_LAYOUT_512K=1")
         if qa:
             # Raise newlib/FreeRTOS malloc arena for QA soak only (m_data has headroom).
             # Must be a CMake -DQA_HEAP_SIZE so it replaces the app CMakeLists defsym
@@ -283,7 +287,16 @@ def cmd_build(
     return 2
 
 
-def sign_image(cfg: dict, raw_bin: Path, out_bin: Path, version: str, *, pad: bool, confirm: bool) -> None:
+def sign_image(
+    cfg: dict,
+    raw_bin: Path,
+    out_bin: Path,
+    version: str,
+    *,
+    pad: bool,
+    confirm: bool,
+    slot_size: str = "0x100000",
+) -> None:
     assert_mcuboot_imgtool_key(cfg)
     imgtool = imgtool_path(cfg)
     key = mcuboot_sign_key(cfg)
@@ -298,7 +311,7 @@ def sign_image(cfg: dict, raw_bin: Path, out_bin: Path, version: str, *, pad: bo
         "--version",
         version,
         "--slot-size",
-        "0x100000",
+        slot_size,
         "--header-size",
         "0x400",
         "--pad-header",
@@ -311,11 +324,19 @@ def sign_image(cfg: dict, raw_bin: Path, out_bin: Path, version: str, *, pad: bo
     run(cmd, cfg, cwd=ROOT, check=True)
 
 
-def _sb3_yaml(cfg: dict, unit: dict, signed_bin: Path, out_sb: Path) -> str:
+def _sb3_yaml(
+    cfg: dict,
+    unit: dict,
+    signed_bin: Path,
+    out_sb: Path,
+    *,
+    slot_size: int = 0x00100000,
+) -> str:
     key_hex = read_cust_mk_sk_hex(cfg, unit)
     sec = secrets_dir(cfg, unit)
     signer = sec / unit["img_signer_relpath"]
     cert = sec / unit["cert_block_relpath"]
+    erase_size = slot_size
     # Paths as forward slashes for SPSDK on Windows
     return (
         f"family: mcxn947\n"
@@ -329,7 +350,7 @@ def _sb3_yaml(cfg: dict, unit: dict, signed_bin: Path, out_sb: Path) -> str:
         f"commands:\n"
         f"  - erase:\n"
         f"      address: 0x00100000\n"
-        f"      size: 0x00100000\n"
+        f"      size: 0x{erase_size:08x}\n"
         f"  - load:\n"
         f"      address: 0x00100000\n"
         f"      file: {signed_bin.as_posix()}\n"

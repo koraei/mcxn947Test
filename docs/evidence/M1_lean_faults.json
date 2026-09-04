@@ -1,0 +1,27 @@
+{
+  "ts": "2026-09-04T09:45:11Z",
+  "cases": {
+    "incomplete_handshake": "sent_garbage",
+    "idle_timeout": "still_open",
+    "no_client_cert_50": {
+      "ok_if_all_fail": true,
+      "sample": "ConnectionResetError"
+    },
+    "wrong_ca_50": {
+      "ok_if_all_fail": true,
+      "sample": "SSLCertVerificationError"
+    },
+    "abrupt_rst_50": {
+      "attempts": 50,
+      "completed": 50
+    },
+    "pc_process_kill_10": 10
+  },
+  "recovery": {
+    "ping": true,
+    "hello": "Hello PC! V3-PULSE-RED",
+    "status": "STATUS version=3.1.0 variant=V3 uuid=9DA8D48D0DDCD755903E8FBD3836C153 uptime_s=493 update_window_s=0",
+    "pass": true
+  },
+  "pass": true
+}

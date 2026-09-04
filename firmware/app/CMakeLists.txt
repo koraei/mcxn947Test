@@ -25,6 +25,7 @@ mcux_add_source(
             src/diagnostics.c
             src/mtls_socket.c
             src/qa_stream.c
+            src/runhours_journal.c
             inc/app_config.h
             inc/diagnostics.h
             inc/led_task.h
@@ -32,6 +33,10 @@ mcux_add_source(
             inc/update_service.h
             inc/mtls_socket.h
             inc/qa_stream.h
+            inc/memory_layout.h
+            inc/runhours_format.h
+            inc/runhours_journal.h
+            inc/flash_range_guard.h
 )
 
 mcux_add_include(
@@ -59,6 +64,13 @@ if(DEFINED LEAN_PROD AND LEAN_PROD)
         CX "-Os -ffunction-sections -fdata-sections"
         LD "-Wl,--gc-sections"
     )
+endif()
+
+# Build-only 512 KiB layout (no CMPA write). Pair with lean for size proof.
+# Linker script swap happens after reconfig.cmake (below) so remove wins.
+if(DEFINED APP_FLASH_LAYOUT_512K AND APP_FLASH_LAYOUT_512K)
+    mcux_add_macro(CC "-DAPP_FLASH_LAYOUT_512K=1")
+    message(STATUS "APP_FLASH_LAYOUT_512K=1 (build-only; CMPA remap unchanged until owner gate)")
 endif()
 
 mcux_add_source(
@@ -141,5 +153,18 @@ include(${SdkRootDirPath}/${board_root}/${board}/ota_examples/ota_mcuboot_server
 # P3+: use NXP OTA/MCUboot slot linker (header at 0x400). For P2-only standalone
 # bring-up without IFR MCUboot, temporarily include standalone_linker.cmake instead.
 # include(${CMAKE_CURRENT_LIST_DIR}/standalone_linker.cmake)
+
+# After SDK linker is registered: constrain to 512 KiB slot when requested.
+if(DEFINED APP_FLASH_LAYOUT_512K AND APP_FLASH_LAYOUT_512K)
+    mcux_remove_armgcc_linker_script(
+        TARGETS debug release
+        BASE_PATH ${SdkRootDirPath}
+        LINKER ${board_root}/${board}/ota_examples/ota_linker/mcxn10_cm33_flash.ld
+    )
+    mcux_add_armgcc_linker_script(
+        TARGETS debug release
+        LINKER ${CMAKE_CURRENT_LIST_DIR}/linker/mcxn10_cm33_flash_512k.ld
+    )
+endif()
 
 mcux_convert_binary(BINARY ${APPLICATION_BINARY_DIR}/${MCUX_SDK_PROJECT_NAME}.bin)

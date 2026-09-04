@@ -1,0 +1,21 @@
+{
+  "ts": "2026-09-04T10:00:49Z",
+  "cases": {
+    "mid_session_rst": {
+      "recovery_hello": "Hello PC! V3-PULSE-RED",
+      "pass": true
+    },
+    "clean_close_idle": {
+      "recovery_hello": "Hello PC! V3-PULSE-RED",
+      "pass": true
+    }
+  },
+  "ipv6": {
+    "nd6_in_map": true,
+    "LWIP_IPV6_note": "compile-time LWIP_IPV6=1 unchanged; on-link ping6 requires board LL addr from UART",
+    "ping6_allnodes_rc": 1,
+    "ping6_sample": "\nPinging ff02::1 with 32 bytes of data:\nRequest timed out.\nRequest timed out.\n\nPing statistics for ff02::1:\n    Packets: Sent = 2, Received = 0, Lost = 2 (100% loss),\n"
+  },
+  "status": "STATUS version=3.1.0 variant=V3 uuid=9DA8D48D0DDCD755903E8FBD3836C153 uptime_s=1011 update_window_s=0",
+  "pass": true
+}

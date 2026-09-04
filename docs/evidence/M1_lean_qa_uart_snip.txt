@@ -1,0 +1,1 @@
+QASTRM rx_ok=1800 tx_ok=1800 vfail=0 io_err=0 disc=0 rx_b=1843200 tx_b=1843200 heap_free_min=32 stack_hwm_words=1480

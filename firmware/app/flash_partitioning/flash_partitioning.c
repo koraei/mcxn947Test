@@ -10,22 +10,26 @@
 #include "flash_map.h"
 #include "mcuboot_config.h"
 #include "sysflash/sysflash.h"
+#include "flash_range_guard.h"
 
 const char *boot_image_names[MCUBOOT_IMAGE_NUMBER] = {"APP"};
+
+/* Compile-time: secondary slot programming window equals APP_SLOT_SIZE only. */
+_Static_assert(APP_SLOT_SIZE == 0x00080000u || APP_SLOT_SIZE == 0x00100000u, "slot");
 
 struct flash_area boot_flash_map[MCUBOOT_IMAGE_SLOT_NUMBER] = {
     /* Image 0; slot 0 - Main Application Primary slot  */
     {.fa_id        = 0,
      .fa_device_id = FLASH_DEVICE_ID,
      .fa_off       = BOOT_FLASH_ACT_APP - BOOT_FLASH_BASE,
-     .fa_size      = BOOT_FLASH_CAND_APP - BOOT_FLASH_ACT_APP,
+     .fa_size      = APP_SLOT_SIZE,
      .fa_name      = "APP_PRIMARY"},
 
     /* Image 0; slot 1 - Main Application Secondary slot  */
     {.fa_id        = 1,
      .fa_device_id = FLASH_DEVICE_ID,
      .fa_off       = BOOT_FLASH_CAND_APP - BOOT_FLASH_BASE,
-     .fa_size      = BOOT_FLASH_CAND_APP - BOOT_FLASH_ACT_APP,
+     .fa_size      = APP_SLOT_SIZE,
      .fa_name      = "APP_SECONDARY"}};
 
 #ifdef CONFIG_BOOT_MODE_ENCRYPTED_XIP_OVERWRITE

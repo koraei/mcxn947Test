@@ -1,0 +1,57 @@
+{
+  "cases": [
+    {
+      "name": "cut_after_phrase_0",
+      "pass": true
+    },
+    {
+      "name": "cut_after_phrase_1",
+      "pass": true
+    },
+    {
+      "name": "cut_after_phrase_2",
+      "pass": true
+    },
+    {
+      "name": "cut_after_phrase_3",
+      "pass": true
+    },
+    {
+      "name": "cut_during_sector_erase",
+      "pass": true
+    },
+    {
+      "name": "cut_before_ready_marker",
+      "pass": true
+    },
+    {
+      "name": "cut_after_ready_before_checkpoint",
+      "pass": true
+    },
+    {
+      "name": "corrupt_ciphertext_tag",
+      "pass": true
+    },
+    {
+      "name": "partially_erased_sector",
+      "pass": true
+    },
+    {
+      "name": "torn_commit_phrase",
+      "pass": true
+    },
+    {
+      "name": "repeated_boots_after_interrupt",
+      "pass": true
+    },
+    {
+      "name": "sector_transition_recycle",
+      "pass": true
+    },
+    {
+      "name": "erased_ram_vbat_state",
+      "pass": true
+    }
+  ],
+  "pass": true
+}

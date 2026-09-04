@@ -1,0 +1,7 @@
+{
+    "match":  true,
+    "first":  "F2DD99BBDB01DC6CAA7E016EC3FEABB6E3FA9A3F8F7CD87491136E25DBACFFDF",
+    "note":  "consecutive identical lean rebuilds",
+    "second":  "F2DD99BBDB01DC6CAA7E016EC3FEABB6E3FA9A3F8F7CD87491136E25DBACFFDF",
+    "text_bytes":  308512
+}

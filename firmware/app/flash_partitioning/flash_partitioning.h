@@ -12,6 +12,7 @@
 #include "mcux_config.h"
 #include "sblconfig.h"
 #include "mflash_drv.h"
+#include "memory_layout.h"
 
 #define BOOT_FLASH_BASE     0x00000000
 
@@ -24,48 +25,25 @@
 
 #else
 /*
- Layout setup
-*/
-#ifndef CONFIG_MCXN_CUSTOM_CFG_MAIN_FLASH_ONLY
-/*
-  Default configuration
-  Bootloader located in Bank 1 IFR 0 Region (0x0100_8000 - 0x0100_FFFF)
-  This configuration supports flash remap
-
-  0x0000_0000  +------------------------+ Flash Start
-               | Application_Primary    | 1024 kB
-  0x0010_0000  +------------------------+
-               | Application_Secondary  | 1024 kB
-  0x0020_0000  +------------------------+
-                          ...
-  0x0100_8000  +------------------------+
-               | Bootloader             | 32 kB
-  0x0100_FFFF  +------------------------+
-*/
-#define BOOT_FLASH_ACT_APP  0x00000000
-#define BOOT_FLASH_CAND_APP 0x00100000
-#else
+ * Slot bases and APP_SLOT_SIZE come from memory_layout.h
+ * (legacy 1 MiB or APP_FLASH_LAYOUT_512K).
+ * Do NOT derive fa_size as (CAND - ACT); that is always 1 MiB bank stride.
+ */
+#if defined(CONFIG_MCXN_CUSTOM_CFG_MAIN_FLASH_ONLY)
 /*
   Custom configuration - see readme file
   Bootloader located in main flash
-  This configuration supports mbedTLS by default and optionally encrypted XIP using NPX
-
-  0x0000_0000  +------------------------+ Flash Start
-               | Bootloader             | 256 kB
-  0x0004_0000  +------------------------+
-               | Application_Primary    | 896 kB
-  0x0012_0000  +------------------------+
-               | Application_Secondary  | 896 kB
-  0x0020_0000  +------------------------+
 */
+#undef BOOT_FLASH_ACT_APP
+#undef BOOT_FLASH_CAND_APP
 #define BOOT_FLASH_ACT_APP  0x00040000
 #define BOOT_FLASH_CAND_APP 0x00120000
 
 #if defined(CONFIG_BOOT_MODE_ENCRYPTED_XIP_OVERWRITE)
-#define BOOT_FLASH_SLOT0_ENC_CFG_ADDRESS (BOOT_FLASH_ACT_APP - 8192U) /* Dummy area in this configuration, reserved for future use */
+#define BOOT_FLASH_SLOT0_ENC_CFG_ADDRESS (BOOT_FLASH_ACT_APP - 8192U)
 #endif
 
-#endif /* !CONFIG_MCXN_CUSTOM_CFG_MAIN_FLASH_ONLY */
+#endif /* CONFIG_MCXN_CUSTOM_CFG_MAIN_FLASH_ONLY */
 
 #endif /* CONFIG_BOOT_CUSTOM_DEVICE_SETUP */
 #endif /* _FLASH_PARTITIONING_H_ */

@@ -89,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="LEAN_PROD_TEST: mbedtls allow-list USER_CONFIG + -Os into app_<target>_lean",
     )
+    b.add_argument(
+        "--layout512",
+        action="store_true",
+        help="Build-only APP_FLASH_LAYOUT_512K (no CMPA write); use with --lean",
+    )
 
     f = sub.add_parser("flash", help="west flash via LinkServer")
     f.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
@@ -137,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
             version=args.version,
             qa=bool(getattr(args, "qa", False)),
             lean=bool(getattr(args, "lean", False)),
+            layout512=bool(getattr(args, "layout512", False)),
         )
     if args.cmd == "flash":
         return cmd_flash(cfg, args.target)

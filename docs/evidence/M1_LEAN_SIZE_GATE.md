@@ -1,54 +1,51 @@
-# M1 LEAN_PROD_TEST — size gate (intermediate)
+# M1 LEAN_PROD — frozen configuration & size record
 
 **Date:** 2026-09-04  
 **Branch:** `feat/512k-ab-encrypted-runhours`  
-**Build:** `python tools/mcxn.py build v3 --version 3.0.0 --lean` → `C:\mcxn\builds\app_v3_lean`
+**Authority:** `doc/FRDM_MCXN947_512K_AB_ENCRYPTED_RUNHOURS_TEST_PLAN_REV_B_FINAL.md`
 
-## Size comparison
+## Freeze decision
 
-| Metric | BASELINE (debug) | LEAN_PROD_TEST (-Os + USER_CONFIG) |
-|--------|-----------------:|-----------------------------------:|
-| `arm-none-eabi-size` text | 785 632 | **308 512** |
-| raw `.bin` | 785 976 | **308 856** |
-| `m_text` used / limit | ~785 KB / 798 KB (96%) | **307 KB / 798 KB (38%)** |
-| Signed for **1 MiB** slot (current CMPA) | 1 048 576 | 1 048 576 (pad) |
-| Signed for **512 KiB** slot (`--slot-size 0x80000`) | N/A (too big) | **524 288** (full pad) |
+Lean mbedTLS USER_CONFIG is **frozen**. No further crypto feature removal for flash size.
 
-### Gates (plan §4.2 / M1.11)
+| Item | Value |
+|------|------:|
+| Linker text (`arm-none-eabi-size`) | **308 512** B (~301.3 KiB) |
+| Raw `.bin` | **308 856** B |
+| Signed **unpadded** (`--slot-size 0x80000`, no `--pad`) | **310 032** B |
+| Signed **padded** 512 KiB slot file | **524 288** B (= slot pad, **not** firmware usage) |
+| `m_text` used / **512 KiB** link limit | **307 176** / **514 048** (502 KiB region) ≈ **59.8%** |
+| Negotiated suite (on-target) | `ECDHE-ECDSA-AES256-GCM-SHA384` / TLS 1.2 |
 
-| Gate | Result |
-|------|--------|
-| Preferred loadable ≤400 KiB | **PASS** (301.6 KiB) |
-| Preferred signed ≤448 KiB | **PASS** for content; padded image is slot-sized |
-| Absolute signed &lt;512 KiB including header/trailer | **PASS** when built for 512 KiB slot |
+### Explicit non-goals (accepted)
 
-Delta vs baseline: **≈477 KiB saved** (~61%).
+- No further mbedTLS allow-list cuts for size.
+- DER credential conversion **deferred** (optional; abandon if complex).
+- No TLS/lwIP buffer or stack shrink for flash.
+- IPv4 + IPv6 remain enabled (`LWIP_IPV6=1`).
 
-## How size was cut (allow-list, not security weaken)
+## Overlay
 
-1. `-Os` + release config + `--gc-sections`
-2. `MBEDTLS_USER_CONFIG_FILE=mbedtls_product_user_config.h` overlay on NXP `mcux_mbedtls_config.h`:
-   - ECDHE-ECDSA only (no RSA/PSK/DHE key exchanges)
-   - No RSA_C / DHM / DES / MD5 / SHA-1 / client / DTLS / tickets / ALPN / SNI
-   - P-256 only
-   - **Kept:** TLS 1.2+1.3 path as in NXP base, AES-GCM, SHA-256/512, X.509 verify, ELS/PSA, IPv6 untouched
+`firmware/app/security/mbedtls_product_user_config.h` via `-DMBEDTLS_USER_CONFIG_FILE` on NXP `mcux_mbedtls_config.h`.
 
-## On-board smoke (lean flashed both 1 MiB slots)
+## Validation summary (lean on field 1 MiB remap)
 
-| Test | Result |
-|------|--------|
-| Hello | PASS |
-| STATUS 3.0.0 V3 | PASS |
-| ECHO | PASS |
-| 5× reconnect | PASS |
-| no-cert / wrong-CA / wrong-FP | FAIL_AS_DESIGNED |
-| `mtls_m2_neg.py` | **M2_NEG_PASS** |
+| Gate | Result | Evidence |
+|------|--------|----------|
+| Hello / STATUS / ECHO | PASS | M1_LEAN_SIZE_GATE.md |
+| Negatives (no-cert / wrong-CA / wrong-FP) | PASS | M2_NEG + M1 faults |
+| 1000 reconnect | PASS | `M1_lean_reconnect.json` |
+| Fault matrix (handshake/RST/kill) | PASS | `M1_lean_faults.json` |
+| Mid-session TLS interrupt recovery | PASS | `M1_lean_interrupt_tls.json` |
+| Lean SB3 OTA 3.0.0→3.1.0 | PASS | prior session / STATUS 3.1.0 |
+| Corrupt SB3 reject | PASS | prior session |
+| IPv6 compiled (`nd6_*` in map) | PASS | `M1_lean_interrupt_tls.json` |
+| IPv6 on-wire ping6 | **INCOMPLETE** (need UART LL addr / operator) | same |
+| NIC/cable link cycles | **BLOCKED** (Windows Access denied); manual procedure | `M4_CABLE_CYCLES.md` |
+| Throughput ≥95% baseline | **PENDING** short lean+QA sample | see M1_throughput |
 
-## Still required before M2/M5
+## Build-only 512 KiB layout
 
-- Full M1.12/M1.13 matrix (1000 reconnect, fault matrix, OTA, soak/throughput vs baseline)
-- DER credential conversion (M1.8)
-- PSA fine-grained config (optional further ELS trim)
-- **No CMPA/remap yet** — size gate for 512 KiB slot is met on flash content
-
-IPv4+IPv6 compile flags unchanged (`LWIP_IPV6=1`).
+`python tools/mcxn.py build v3 --lean --layout512` → `C:\mcxn\builds\app_v3_lean_512k`  
+Linker: `firmware/app/linker/mcxn10_cm33_flash_512k.ld` (`SLOT_SIZE=0x80000`).  
+**CMPA / `FLASH_REMAP_SIZE` not written.**

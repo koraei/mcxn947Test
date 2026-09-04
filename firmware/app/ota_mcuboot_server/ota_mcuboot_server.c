@@ -29,6 +29,7 @@
 #include "mflash_drv.h"
 #include "timers.h"
 #include "fsl_debug_console.h"
+#include "flash_range_guard.h"
 
 #include "sysflash/sysflash.h"
 #include "flash_map.h"
@@ -278,6 +279,14 @@ int32_t store_update_image(struct multipart_read_ctx *ctx, uint32_t partition_ph
 
     /* Preset result code to indicate "no error" */
     int32_t mflash_result = 0;
+
+    /* OTA must never touch shared runhours / platform / event pools */
+    if (!flash_guard_ota_range_ok(partition_phys_addr, partition_size) ||
+        !flash_guard_not_security_region(partition_phys_addr, partition_size))
+    {
+        PRINTF("%s: partition outside candidate slot\n", __func__);
+        return -1;
+    }
 
     /* Check partition alignment */
     if (!mflash_drv_is_sector_aligned(partition_phys_addr) || !mflash_drv_is_sector_aligned(partition_size))

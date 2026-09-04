@@ -33,10 +33,12 @@
 #define HELLO_RECV_TO_MS 5000
 
 /* P5 Ethernet SB3 — transport limits (not crypto) */
+#include "memory_layout.h"
 #define UPDATE_HDR_MAGIC       0x5341544Fu /* 'OTAS' LE */
 #define UPDATE_HDR_VERSION     1u
 #define UPDATE_HDR_SIZE_B      28u
-#define UPDATE_SB3_MAX_B       (0x00100000u + 0x40000u) /* 1 MiB slot + SB3/cmd overhead */
+/* Cap payload to active slot size (+ SB3 cmd overhead); 512K layout shrinks this. */
+#define UPDATE_SB3_MAX_B       (APP_SLOT_SIZE + 0x40000u)
 #define UPDATE_CHUNK_B         1024u
 #define UPDATE_HDR_RECV_TO_MS  5000
 #define UPDATE_STREAM_TO_MS    10000
