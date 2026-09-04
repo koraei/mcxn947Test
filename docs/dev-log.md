@@ -1,4 +1,4 @@
-﻿# Development log
+# Development log
 
 ## 2026-09-03 â€” Phase P0 start
 
@@ -224,4 +224,22 @@ Chunked TLS OTAS required (`send_otas` 8 KiB). V1→V2 and CLI V2→V3 `UPDATE P
 
 ### Remaining gate (M4 time)
 24 h soak / full abort+link matrix still outstanding.
+
+## 2026-09-03 — M4 redirect: representative persistent soak
+
+### Reclassified
+One-ECHO-per-session soak → handshake/reconnect endurance only (`docs/evidence/M4_HANDSHAKE_ENDURANCE.md`). Combined with 1000-reconnect PASS for churn.
+
+### QA stream (compile-time only)
+- `APP_QA_STREAM=1` → TCP `:5001` echo frames on same `mtls_socket` path; production default `0`.
+- Build: `python tools/mcxn.py build v3 --qa` sets `-DQA_HEAP_SIZE=0x38000` (production stays `0x1B000`).
+- Host: `tools/m4_persistent_soak.py` ~100 KB/s bidirectional, 24 h → `C:\mcxn\builds\m4_persistent_soak\`.
+
+### Cable / NIC
+Windows `Disable-NetAdapter` Access denied → `docs/evidence/M4_CABLE_CYCLES.md` (manual cable procedure).
+
+### Post-soak (queued — do not run until soak ends)
+Full sequence: `docs/evidence/M4_POST_SOAK_PLAN.md`  
+(soak verify → manual cable cycles → dual-session root-cause → prod restore → 3.0.0→3.1.0 OTA → final report).  
+**Accepted 2026-09-03:** leave 24 h persistent soak undisturbed (no cable/flash/reset during soak).
 

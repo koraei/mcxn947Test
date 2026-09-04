@@ -24,12 +24,14 @@ mcux_add_source(
             src/update_service.c
             src/diagnostics.c
             src/mtls_socket.c
+            src/qa_stream.c
             inc/app_config.h
             inc/diagnostics.h
             inc/led_task.h
             inc/hello_service.h
             inc/update_service.h
             inc/mtls_socket.h
+            inc/qa_stream.h
 )
 
 mcux_add_include(
@@ -107,8 +109,15 @@ mcux_add_mdk_configuration(
     LD "--predefine=\"-D__stack_size__=0x1000\" --predefine=\"-D__heap_size__=0x10000\""
 )
 
+# Production keeps 0x1B000. QA soak (APP_QA_STREAM) needs a larger newlib arena for
+# a second mTLS session + FreeRTOS task stacks allocated via heap_3; pass -DQA_HEAP_SIZE=0x28000.
+if(DEFINED QA_HEAP_SIZE)
+    set(_APP_HEAP_SIZE ${QA_HEAP_SIZE})
+else()
+    set(_APP_HEAP_SIZE 0x1B000)
+endif()
 mcux_add_armgcc_configuration(
-    LD "-Xlinker --defsym=__stack_size__=0x1000 -Xlinker --defsym=__heap_size__=0x1B000"
+    LD "-Xlinker --defsym=__stack_size__=0x1000 -Xlinker --defsym=__heap_size__=${_APP_HEAP_SIZE}"
 )
 
 include(${SdkRootDirPath}/${board_root}/${board}/ota_examples/ota_mcuboot_server/enet/reconfig.cmake OPTIONAL)

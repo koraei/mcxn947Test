@@ -88,6 +88,13 @@ def cmd_doctor(cfg: dict) -> int:
     unit_path = ROOT / "units" / f"{cfg.get('unit_name', 'DEV-UNIT-01')}.json"
     print("unit registry:", unit_path, "OK" if unit_path.exists() else "MISSING")
 
+    try:
+        fp = assert_mcuboot_imgtool_key(cfg)
+        print("MCUboot imgtool_key SHA-256:", fp, "OK")
+    except ImgtoolKeyError as e:
+        print("MCUboot imgtool_key:", e)
+        fails.append("imgtool_key")
+
     print("Ping board IP...")
     ping = ["ping", "-n", "2", cfg["board_ip"]] if sys.platform == "win32" else ["ping", "-c", "2", cfg["board_ip"]]
     prc = subprocess.call(ping)
@@ -169,7 +176,7 @@ def variant_defs_path(cfg: dict, variant: str, version: str | None = None) -> Pa
     return path
 
 
-def cmd_build(cfg: dict, target: str, version: str | None = None) -> int:
+def cmd_build(cfg: dict, target: str, version: str | None = None, *, qa: bool = False) -> int:
     sdk = Path(cfg["sdk_root"])
     build_root = Path(cfg["build_root"])
     build_root.mkdir(parents=True, exist_ok=True)
@@ -190,9 +197,14 @@ def cmd_build(cfg: dict, target: str, version: str | None = None) -> int:
             print("mtls creds generate failed", rc_gen, file=sys.stderr)
             return rc_gen
         app = ROOT / cfg["paths"]["app"]
-        bdir = build_root / f"app_{target}"
+        bdir = build_root / (f"app_{target}_qa" if qa else f"app_{target}")
         defs = variant_defs_path(cfg, target.upper(), version)
         extra = f"-include {defs.as_posix()}"
+        if qa:
+            # Persistent mTLS stream for M4 soak only; production builds omit this.
+            # Extra heap: qa task + mbedtls session buffers (heap_3 allocates stacks from malloc).
+            extra += " -DAPP_QA_STREAM=1 -DINCLUDE_uxTaskGetStackHighWaterMark=1"
+            print("BUILD NOTE: APP_QA_STREAM=1 (QA soak image — not for release)", flush=True)
         cmd = [
             sys.executable,
             "-m",
@@ -212,6 +224,13 @@ def cmd_build(cfg: dict, target: str, version: str | None = None) -> int:
             "auto",
             f"--cmake-opt=-DEXTRA_CFLAGS={extra}",
         ]
+        if qa:
+            # Raise newlib/FreeRTOS malloc arena for QA soak only (m_data has headroom).
+            # Must be a CMake -DQA_HEAP_SIZE so it replaces the app CMakeLists defsym
+            # (EXTRA_LDFLAGS --defsym loses to the later LD flag and stays 0x1B000).
+            # Two concurrent mTLS contexts (stream + Hello health) need ~64KiB SSL I/O
+            # buffers beyond the production single-session arena.
+            cmd.append("--cmake-opt=-DQA_HEAP_SIZE=0x38000")
         return run(cmd, cfg, cwd=sdk)
 
     if target == "mcuboot":

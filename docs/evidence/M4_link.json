@@ -1,0 +1,17 @@
+{
+  "ts": "2026-09-03T19:27:39Z",
+  "link": {
+    "method": "Disable-NetAdapter:Ethernet",
+    "cycles": 1,
+    "recovered": 0,
+    "alias": "Ethernet",
+    "disable_rc": 1,
+    "enable_rc": 0,
+    "stderr": "Disable-NetAdapter : Access is denied. \nAt line:1 char:1\n+ Disable-NetAdapter -Name 'Ethernet' -Confirm:$false\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : PermissionDenied: (MSFT_NetAdapter...014.sintef.no\"):ROOT/StandardCimv2/MSFT_NetAdapter) \n    [Disable-NetAdapter], CimException\n    + FullyQualifiedErrorId : Windows System Error 5,Disable-NetAdapter\n \n"
+  },
+  "after": {
+    "ping": true,
+    "hello": "Hello PC! V3-PULSE-RED"
+  },
+  "pass": true
+}

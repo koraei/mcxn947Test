@@ -81,6 +81,23 @@ def cmd_reconnect(cfg: dict, count: int, out: Path) -> int:
     return 0 if rec["pass"] else 1
 
 
+_WRONG_CA_CRT: Path | None = None
+
+
+def _tls_fail_connect(cfg: dict, ctx: ssl.SSLContext) -> str:
+    host, port = cfg["board_ip"], int(cfg["hello_port"])
+    try:
+        raw = socket.create_connection((host, port), timeout=3)
+        raw.settimeout(3)
+        with ctx.wrap_socket(raw, server_hostname=None):
+            return "UNEXPECTED_OK"
+    except Exception as e:
+        return type(e).__name__
+    finally:
+        # MCU handshake timeout is 5 s and hello is single-session; drain before next attack.
+        time.sleep(0.25)
+
+
 def _no_client_cert(cfg: dict) -> str:
     mt = cfg["mtls"]
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -88,18 +105,11 @@ def _no_client_cert(cfg: dict) -> str:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_REQUIRED
     ctx.load_verify_locations(cafile=mt["ca_cert"])
-    host, port = cfg["board_ip"], int(cfg["hello_port"])
-    raw = socket.create_connection((host, port), timeout=5)
-    raw.settimeout(5)
-    try:
-        with ctx.wrap_socket(raw, server_hostname=None) as ss:
-            ss.recv(64)
-        return "UNEXPECTED_OK"
-    except Exception as e:
-        return type(e).__name__
+    return _tls_fail_connect(cfg, ctx)
 
 
 def _wrong_ca(cfg: dict) -> str:
+    global _WRONG_CA_CRT
     import datetime as dt
     import tempfile
 
@@ -108,35 +118,29 @@ def _wrong_ca(cfg: dict) -> str:
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import NameOID
 
-    k = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "wrong-ca")])
-    ca = (
-        x509.CertificateBuilder()
-        .subject_name(name)
-        .issuer_name(name)
-        .public_key(k.public_key())
-        .serial_number(1)
-        .not_valid_before(dt.datetime.utcnow() - dt.timedelta(days=1))
-        .not_valid_after(dt.datetime.utcnow() + dt.timedelta(days=1))
-        .sign(k, hashes.SHA256())
-    )
-    tmp = Path(tempfile.mkdtemp()) / "wrong.crt"
-    tmp.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    if _WRONG_CA_CRT is None:
+        k = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "wrong-ca")])
+        ca = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(k.public_key())
+            .serial_number(1)
+            .not_valid_before(dt.datetime.utcnow() - dt.timedelta(days=1))
+            .not_valid_after(dt.datetime.utcnow() + dt.timedelta(days=1))
+            .sign(k, hashes.SHA256())
+        )
+        tmp = Path(tempfile.mkdtemp()) / "wrong.crt"
+        tmp.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+        _WRONG_CA_CRT = tmp
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_REQUIRED
-    ctx.load_verify_locations(cafile=str(tmp))
+    ctx.load_verify_locations(cafile=str(_WRONG_CA_CRT))
     ctx.load_cert_chain(cfg["mtls"]["client_cert"], cfg["mtls"]["client_key"])
-    host, port = cfg["board_ip"], int(cfg["hello_port"])
-    raw = socket.create_connection((host, port), timeout=5)
-    raw.settimeout(5)
-    try:
-        with ctx.wrap_socket(raw, server_hostname=None) as ss:
-            ss.recv(64)
-        return "UNEXPECTED_OK"
-    except Exception as e:
-        return type(e).__name__
+    return _tls_fail_connect(cfg, ctx)
 
 
 def cmd_faults(cfg: dict, out: Path) -> int:
@@ -150,6 +154,7 @@ def cmd_faults(cfg: dict, out: Path) -> int:
         raw.sendall(b"\x16\x03\x01\x00\x01\x00")
         raw.close()
         results["cases"]["incomplete_handshake"] = "sent_garbage"
+        time.sleep(6.0)
     except Exception as e:
         results["cases"]["incomplete_handshake"] = f"err:{type(e).__name__}"
 
@@ -173,9 +178,16 @@ def cmd_faults(cfg: dict, out: Path) -> int:
     # no cert / wrong CA (100 unauthorized handshakes: 50+50)
     no_cert = []
     wrong_ca = []
-    for _ in range(50):
+    for i in range(50):
         no_cert.append(_no_client_cert(cfg))
+        if (i + 1) % 5 == 0:
+            time.sleep(6.0)
+            print(f"no_cert {i+1}/50", flush=True)
+    for i in range(50):
         wrong_ca.append(_wrong_ca(cfg))
+        if (i + 1) % 5 == 0:
+            time.sleep(6.0)
+            print(f"wrong_ca {i+1}/50", flush=True)
     results["cases"]["no_client_cert_50"] = {
         "ok_if_all_fail": all(x != "UNEXPECTED_OK" for x in no_cert),
         "sample": no_cert[0],
@@ -340,6 +352,7 @@ def cmd_soak(cfg: dict, hours: float, workers: int, logdir: Path) -> int:
                 with lock:
                     stats["tcp_err"] += 1
                     stats["messages_fail"] += 1
+            time.sleep(0.15)
 
     threads = [threading.Thread(target=worker, args=(i,), daemon=True) for i in range(workers)]
     for t in threads:

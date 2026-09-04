@@ -5,6 +5,7 @@
 #include "hello_service.h"
 #include "led_task.h"
 #include "mtls_socket.h"
+#include "qa_stream.h"
 #include "update_service.h"
 
 #include "fsl_common.h"
@@ -73,6 +74,7 @@ static void main_thread(void *arg)
 
     hello_service_start();
     update_service_start();
+    qa_stream_service_start();
 
     vTaskDelete(NULL);
 }

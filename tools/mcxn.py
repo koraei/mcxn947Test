@@ -79,6 +79,11 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("build", help="Build V1/V2/V3/MCUboot reproducibly")
     b.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
     b.add_argument("--version", default=None, help="APP_VERSION_STRING override (v1/v2/v3)")
+    b.add_argument(
+        "--qa",
+        action="store_true",
+        help="Build with APP_QA_STREAM=1 into app_<target>_qa (M4 soak only; not for release)",
+    )
 
     f = sub.add_parser("flash", help="west flash via LinkServer")
     f.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
@@ -121,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "doctor":
         return cmd_doctor(cfg)
     if args.cmd == "build":
-        return cmd_build(cfg, args.target, version=args.version)
+        return cmd_build(cfg, args.target, version=args.version, qa=bool(getattr(args, "qa", False)))
     if args.cmd == "flash":
         return cmd_flash(cfg, args.target)
     if args.cmd == "serial":
