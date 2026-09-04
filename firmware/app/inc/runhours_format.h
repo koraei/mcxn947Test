@@ -23,6 +23,8 @@
 #define RH_FORMAT_VER            (1u)
 #define RH_RECORD_TYPE           (1u)
 #define RH_QUANTUM_SECONDS       (600u)
+/* Persisted run-hours accounting quantum (production): 600 s = 10 minutes.
+ * Background task cadence uses the same interval. Not a 15-minute quantum. */
 
 /* Exactly 16 bytes — matches host READY_MARK b"READY_MARKER_v1\\0" */
 static const uint8_t RH_READY_MARKER_BYTES[16] = {'R', 'E', 'A', 'D', 'Y', '_', 'M', 'A',
@@ -51,6 +53,9 @@ typedef struct {
     uint16_t active_sector;
     uint8_t  remap_active;
     uint8_t  provisioned;
+    uint8_t  key_version; /* 1=legacy HMAC, 2=ELS opaque */
+    uint8_t  key_ks_state; /* rh_ks_state_t */
+    uint16_t key_id;
 } rh_diag_t;
 
 #endif /* RUNHOURS_FORMAT_H_ */

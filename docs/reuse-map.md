@@ -12,4 +12,5 @@
 | SDK `imgtool.py` | MCUboot in SDK | `tools/mcxn_lib` sign step | Slot image sign | unchanged NXP params; key = `paths.imgtool_key` (not IMG1_1) |
 | `middleware/lwip/.../httpsrv_tls.c` BIO pattern | 26.06.00-LTS | `firmware/app/src/mtls_socket.c` | mbedTLS↔lwIP send/recv | No HTTPSRV; raw mTLS sockets only |
 | `middleware/mbedtls3x` + PSA + ELS_PKC + thread_alt | 26.06.00-LTS | product `prj.conf` | TLS 1.2 mTLS | Project overlay; SDK sources untouched |
+| `examples/mbedtls3x_examples/psa_crypto_opaque_key_examples` + board `CONFIG_TEST_KEY_LOCATION=0xc00401` | 26.06.00-LTS | `runhours_crypto.c` / `runhours_keystore.c` | Run-hours journal AES-256-GCM opaque key | Volatile ELS opaque @ RFC3394 location; blob in platform reserve (no PSA ITS / no CMPA) |
 | Python `ssl` | host | `tools/mcxn_lib/mtls.py` | PC client mTLS + fingerprint pin | Secrets under `secrets_root/mtls/` |

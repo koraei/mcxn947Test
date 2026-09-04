@@ -4,6 +4,7 @@
  */
 #include "runhours_journal.h"
 #include "runhours_crypto.h"
+#include "runhours_keystore.h"
 #include "flash_arbiter.h"
 #include "flash_range_guard.h"
 #include "memory_layout.h"
@@ -526,7 +527,8 @@ static int recycle_and_append(uint64_t quanta)
     return 0;
 }
 
-static int scan_recover(void)
+/* Returns 1 if a valid record was found, 0 if none, -1 on hard failure. */
+static int scan_find_best(int *out_any_non_ff)
 {
     uint64_t best_seq = 0;
     uint64_t best_q = 0;
@@ -553,7 +555,7 @@ static int scan_recover(void)
             const uint8_t *rec = (const uint8_t *)(base + RH_HEADER_SIZE + (uint32_t)slot * RH_RECORD_SIZE);
             uint64_t q = 0, seq = 0;
 
-            if (region_all_ff((uint32_t)rec, RH_RECORD_SIZE))
+            if (region_all_ff((uint32_t)(uintptr_t)rec, RH_RECORD_SIZE))
             {
                 continue;
             }
@@ -572,30 +574,14 @@ static int scan_recover(void)
         }
     }
 
+    if (out_any_non_ff)
+    {
+        *out_any_non_ff = any_non_ff;
+    }
     if (!found)
     {
-        if (!any_non_ff)
-        {
-            /* Virgin → INITIAL at sector preferring opposite bank */
-            uint16_t sid0 = sector_is_exec_bank(0) ? RH_POOL_A_SECTORS : 0;
-            if (sector_erase(sid0) != 0 || write_sector_header(sid0, 1) != 0)
-            {
-                return -1;
-            }
-            s_seq = 0;
-            s_quanta = 0;
-            if (append_record(sid0, 1, 0) != 0)
-            {
-                return -1;
-            }
-            s_ready = 1;
-            s_diag.provisioned = 1;
-            return 0;
-        }
-        PRINTF("rh: JOURNAL CORRUPT (non-virgin, no valid record)\r\n");
-        return -1;
+        return 0;
     }
-
     s_seq = best_seq;
     s_quanta = best_q;
     s_write_sector = best_sid;
@@ -605,11 +591,79 @@ static int scan_recover(void)
     s_diag.seq = best_seq;
     s_diag.quanta = best_q;
     s_diag.active_sector = best_sid;
-    return 0;
+    return 1;
+}
+
+static int scan_recover(void)
+{
+    int any_non_ff = 0;
+    int found = scan_find_best(&any_non_ff);
+
+    if (found < 0)
+    {
+        return -1;
+    }
+    if (found)
+    {
+        return 0;
+    }
+    if (!any_non_ff)
+    {
+        uint16_t sid0 = sector_is_exec_bank(0) ? RH_POOL_A_SECTORS : 0;
+        if (sector_erase(sid0) != 0 || write_sector_header(sid0, 1) != 0)
+        {
+            return -1;
+        }
+        s_seq = 0;
+        s_quanta = 0;
+        if (append_record(sid0, 1, 0) != 0)
+        {
+            return -1;
+        }
+        s_ready = 1;
+        s_diag.provisioned = 1;
+        return 0;
+    }
+    PRINTF("rh: JOURNAL CORRUPT (non-virgin, no valid record)\r\n");
+    return -1;
+}
+
+static int migrate_append_cb(uint64_t quanta, void *ctx)
+{
+    int rc;
+    (void)ctx;
+    if (flash_arbiter_acquire(FLASH_OWNER_JOURNAL, 5000) != 0)
+    {
+        return -1;
+    }
+    if (sector_is_exec_bank(s_write_sector))
+    {
+        rc = recycle_and_append(quanta);
+    }
+    else
+    {
+        rc = append_record(s_write_sector, s_write_gen, quanta);
+        if (rc == -2)
+        {
+            rc = recycle_and_append(quanta);
+        }
+    }
+    flash_arbiter_release(FLASH_OWNER_JOURNAL);
+    return (rc == 0) ? 0 : -1;
+}
+
+static void diag_fill_key(void)
+{
+    s_diag.key_version = (uint8_t)rh_crypto_key_version();
+    s_diag.key_id = rh_crypto_key_id();
+    s_diag.key_ks_state = rh_crypto_ks_state();
 }
 
 rh_status_t rh_journal_init(void)
 {
+    int any_non_ff = 0;
+    int found;
+
     memset(&s_diag, 0, sizeof(s_diag));
     s_ready = 0;
     s_boot_id = (uint32_t)xTaskGetTickCount() ^ 0xA5A5u;
@@ -627,6 +681,76 @@ rh_status_t rh_journal_init(void)
     {
         return RH_ERR_BUSY;
     }
+
+    if (rh_crypto_is_v2())
+    {
+        found = scan_find_best(&any_non_ff);
+        if (found == 1)
+        {
+            /* Staged blob + authenticable v2 record → commit version. */
+            if (rh_crypto_ks_state() == (uint8_t)RH_KS_BLOB_STAGED)
+            {
+                flash_arbiter_release(FLASH_OWNER_JOURNAL);
+                if (rh_crypto_try_commit_if_ready() != 0)
+                {
+                    s_diag.crypto_errors++;
+                    rh_crypto_zeroize();
+                    return RH_ERR_IO;
+                }
+                if (flash_arbiter_acquire(FLASH_OWNER_JOURNAL, 5000) != 0)
+                {
+                    return RH_ERR_BUSY;
+                }
+            }
+            flash_arbiter_release(FLASH_OWNER_JOURNAL);
+            diag_fill_key();
+            PRINTF("rh: ready v2 seq=%lu quanta=%lu key_id=%u\r\n", (unsigned long)s_seq,
+                   (unsigned long)s_quanta, (unsigned)s_diag.key_id);
+            return RH_OK;
+        }
+
+        /* No v2 record yet: fall back to v1 value, keep staged blob. */
+        flash_arbiter_release(FLASH_OWNER_JOURNAL);
+        if (rh_crypto_fallback_v1(diagnostics_uuid_bytes()) != 0)
+        {
+            s_diag.crypto_errors++;
+            return RH_ERR_IO;
+        }
+        if (flash_arbiter_acquire(FLASH_OWNER_JOURNAL, 5000) != 0)
+        {
+            return RH_ERR_BUSY;
+        }
+        if (scan_recover() != 0)
+        {
+            flash_arbiter_release(FLASH_OWNER_JOURNAL);
+            rh_crypto_zeroize();
+            return RH_ERR_CORRUPT;
+        }
+        flash_arbiter_release(FLASH_OWNER_JOURNAL);
+
+        if (rh_crypto_migrate_to_v2(s_quanta, s_seq, migrate_append_cb, NULL) != 0)
+        {
+            s_diag.crypto_errors++;
+            diag_fill_key();
+            PRINTF("rh: migrate fail (v1 still usable)\r\n");
+            /* Keep v1 operational if migrate interrupted before commit. */
+            if (!rh_crypto_is_v2())
+            {
+                if (rh_crypto_fallback_v1(diagnostics_uuid_bytes()) != 0)
+                {
+                    return RH_ERR_IO;
+                }
+            }
+            diag_fill_key();
+            return RH_OK;
+        }
+        diag_fill_key();
+        PRINTF("rh: ready migrated seq=%lu quanta=%lu key_id=%u\r\n", (unsigned long)s_seq,
+               (unsigned long)s_quanta, (unsigned)s_diag.key_id);
+        return RH_OK;
+    }
+
+    /* Fresh v1 path (no committed/staged opaque key). */
     if (scan_recover() != 0)
     {
         flash_arbiter_release(FLASH_OWNER_JOURNAL);
@@ -635,8 +759,24 @@ rh_status_t rh_journal_init(void)
     }
     flash_arbiter_release(FLASH_OWNER_JOURNAL);
 
-    PRINTF("rh: ready seq=%lu quanta=%lu sector=%u remap=%u\r\n", (unsigned long)s_seq,
-           (unsigned long)s_quanta, (unsigned)s_write_sector, (unsigned)s_diag.remap_active);
+    if (rh_crypto_migrate_to_v2(s_quanta, s_seq, migrate_append_cb, NULL) != 0)
+    {
+        s_diag.crypto_errors++;
+        /* Stay on v1 so board remains usable; next boot retries. */
+        if (rh_crypto_fallback_v1(diagnostics_uuid_bytes()) != 0)
+        {
+            return RH_ERR_IO;
+        }
+        diag_fill_key();
+        PRINTF("rh: ready v1 (migrate pending) seq=%lu quanta=%lu\r\n", (unsigned long)s_seq,
+               (unsigned long)s_quanta);
+        return RH_OK;
+    }
+
+    diag_fill_key();
+    PRINTF("rh: ready seq=%lu quanta=%lu sector=%u remap=%u key_ver=%u\r\n", (unsigned long)s_seq,
+           (unsigned long)s_quanta, (unsigned)s_write_sector, (unsigned)s_diag.remap_active,
+           (unsigned)s_diag.key_version);
     return RH_OK;
 }
 
@@ -713,6 +853,9 @@ void rh_journal_get_diag(rh_diag_t *out)
     *out = s_diag;
     out->deferred_ota = flash_arbiter_journal_deferred_count();
     out->remap_active = (uint8_t)(bl_flash_remap_active() ? 1 : 0);
+    out->key_version = (uint8_t)rh_crypto_key_version();
+    out->key_id = rh_crypto_key_id();
+    out->key_ks_state = rh_crypto_ks_state();
 }
 
 rh_status_t rh_journal_force_next_quantum(void)

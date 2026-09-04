@@ -297,3 +297,24 @@ Lean product **3.1.0** both slots (non-QA). Hello/STATUS OK.
 2. Surgical one-byte CMPA patch exists, but **IFR MCUboot hardcodes NPX LIM=31 (1 MiB)** — CMPA alone cannot produce 512 KiB remap.
 3. Awaiting owner approval for **surgical CMPA + IFR MCUboot LIM=15** together.
 
+## 2026-09-04 — run-hours key hardening (ELS opaque)
+
+**Goal:** Replace UUID/domain HMAC `K_RH` with PSA/ELS opaque AES-256 @ `0xc00401` + RFC3394 blob in platform reserve.
+
+### Done
+- Value-preserving v1→v2 migration (quanta preserved on DEV-UNIT-01: **140→140**); `RH_KEY_VERSION=2` / `key_id` / `ks` on `RHDIAG`.
+- Dual-slot keystore; STAGED→COMMITTED is phrase-only (no erase on commit).
+- No CMPA/CFPA/IFR/`CUST_MK_SK` changes.
+- **600 s** documented as persisted quantum (= cadence), not 15 minutes.
+- Evidence: `docs/evidence/RUNHOURS_KEY_HARDENING.md`; security-design + reuse-map updated.
+- Focused regress tool: `tools/runhours_key_hardening_regress.py`.
+
+### Note
+`psa_export_key` is `NOT_SUPPORTED` for ELS COPRO RFC3394 keys; blob captured from PSA key buffer after NXP `StoreKey` (wrapped bytes only).
+
+## 2026-09-04 — FREEZE: v2 ELS run-hours key architecture
+
+**Owner decision:** Freeze journal-key crypto as shipped (`RH_KEY_VERSION=2`, PSA/ELS opaque @ `0xc00401`, RFC3394 blob in platform reserve, value-preserving migrate).
+
+**During endurance:** no changes to `runhours_crypto` / `runhours_keystore` / key migration / AEAD path / key diagnostics semantics unless owner re-opens the freeze. Journal format, pools, arbiter, OTA, and 600 s quantum remain as Gate 10 + hardening evidence.
+

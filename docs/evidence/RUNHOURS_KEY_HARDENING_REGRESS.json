@@ -1,0 +1,133 @@
+{
+  "cases": [
+    {
+      "name": "1_init_new_key_source",
+      "pass": true
+    },
+    {
+      "name": "2_encrypt_decrypt_auth",
+      "pass": true
+    },
+    {
+      "name": "3_wrong_key_builtin_prove",
+      "pass": true
+    },
+    {
+      "name": "4_tag_corruption_rejected",
+      "pass": true
+    },
+    {
+      "name": "5_reset_during_program_commit",
+      "pass": true
+    },
+    {
+      "name": "6_one_rollover",
+      "pass": true
+    },
+    {
+      "name": "7_8_remap_and_newer_ota",
+      "pass": true
+    },
+    {
+      "name": "9_no_secret_in_diag",
+      "pass": true
+    }
+  ],
+  "pass": true,
+  "diag": {
+    "pre_migrate": {
+      "seq": 540,
+      "quanta": 536,
+      "writes": 0,
+      "erases": 0,
+      "auth_fail": 6,
+      "torn": 6,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 11,
+      "remap": 0,
+      "prov": 1,
+      "key_ver": 2,
+      "key_id": 1,
+      "ks": 2
+    },
+    "post_migrate": {
+      "seq": 540,
+      "quanta": 536,
+      "writes": 0,
+      "erases": 0,
+      "auth_fail": 6,
+      "torn": 6,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 11,
+      "remap": 0,
+      "prov": 1,
+      "key_ver": 2,
+      "key_id": 1,
+      "ks": 2
+    },
+    "wrong_key_builtin": "migrate_v2_gcm_roundtrip_rejects_wrong_opaque_key",
+    "after_tag_tear": {
+      "seq": 541,
+      "quanta": 537,
+      "writes": 0,
+      "erases": 0,
+      "auth_fail": 6,
+      "torn": 7,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 11,
+      "remap": 0,
+      "prov": 1,
+      "key_ver": 2,
+      "key_id": 1,
+      "ks": 2
+    },
+    "auth_fail_delta": 0,
+    "after_rollover": {
+      "seq": 672,
+      "quanta": 668,
+      "writes": 524,
+      "erases": 1,
+      "auth_fail": 6,
+      "torn": 8,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 12,
+      "remap": 0,
+      "prov": 1,
+      "key_ver": 2,
+      "key_id": 1,
+      "ks": 2
+    },
+    "post_ota": {
+      "seq": 674,
+      "quanta": 669,
+      "writes": 0,
+      "erases": 0,
+      "auth_fail": 4,
+      "torn": 8,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 0,
+      "remap": 0,
+      "prov": 1,
+      "key_ver": 2,
+      "key_id": 1,
+      "ks": 2
+    },
+    "status": "STATUS version=3.6.0 variant=V3 uuid=9DA8D48D0DDCD755903E8FBD3836C153 uptime_s=6 update_window_s=174",
+    "rhdiag": "RHDIAG seq=674 quanta=669 writes=0 erases=0 auth_fail=4 torn=8 flash_err=0 crypto_err=0 deferred=0 sector=0 remap=0 prov=1 key_ver=2 key_id=1 ks=2"
+  },
+  "notes": {
+    "quantum_seconds": 600,
+    "quantum_meaning": "persisted run-hours accounting quantum (= background cadence)",
+    "key": "PSA ELS opaque AES-256 @ 0xc00401 RFC3394 blob in platform reserve"
+  }
+}

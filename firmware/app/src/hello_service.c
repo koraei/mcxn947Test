@@ -110,11 +110,13 @@ static void handle_client(int client)
         rh_journal_get_diag(&d);
         len = snprintf(reply, sizeof(reply),
                        "RHDIAG seq=%lu quanta=%lu writes=%lu erases=%lu auth_fail=%lu torn=%lu "
-                       "flash_err=%lu crypto_err=%lu deferred=%lu sector=%u remap=%u prov=%u\n",
+                       "flash_err=%lu crypto_err=%lu deferred=%lu sector=%u remap=%u prov=%u "
+                       "key_ver=%u key_id=%u ks=%u\n",
                        (unsigned long)d.seq, (unsigned long)d.quanta, (unsigned long)d.write_count,
                        (unsigned long)d.erase_count, (unsigned long)d.auth_fail, (unsigned long)d.torn_recoveries,
                        (unsigned long)d.flash_errors, (unsigned long)d.crypto_errors, (unsigned long)d.deferred_ota,
-                       (unsigned)d.active_sector, (unsigned)d.remap_active, (unsigned)d.provisioned);
+                       (unsigned)d.active_sector, (unsigned)d.remap_active, (unsigned)d.provisioned,
+                       (unsigned)d.key_version, (unsigned)d.key_id, (unsigned)d.key_ks_state);
         if (len > 0)
         {
             (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);

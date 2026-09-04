@@ -27,6 +27,7 @@ mcux_add_source(
             src/qa_stream.c
             src/runhours_journal.c
             src/runhours_crypto.c
+            src/runhours_keystore.c
             src/runhours_task.c
             src/flash_arbiter.c
             inc/app_config.h
@@ -40,6 +41,7 @@ mcux_add_source(
             inc/runhours_format.h
             inc/runhours_journal.h
             inc/runhours_crypto.h
+            inc/runhours_keystore.h
             inc/runhours_task.h
             inc/flash_arbiter.h
             inc/flash_range_guard.h
@@ -55,6 +57,7 @@ mcux_add_include(
              inc
              src
              security
+             ${SdkRootDirPath}/middleware/mbedtls3x/library
 )
 
 # LEAN_PROD_TEST: product USER_CONFIG overlay (allow-list prune). BASELINE omits this.

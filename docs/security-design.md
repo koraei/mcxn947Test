@@ -71,6 +71,23 @@ Normal app:   mTLS TCP:5000 → decrypt → Hello/ECHO/STATUS plaintext
 - Host pins server cert SHA-256 (`units/*.json` → `mtls_server_cert_sha256`).
 - Application slot images are signed with `mcxn.toml` `imgtool_key` (MCUboot), **not** `IMG1_1` (ROM/MBI).
 
+## Encrypted run-hours journal key (post Gate 10 hardening)
+
+**FREEZE (2026-09-04, owner):** v2 ELS opaque journal-key architecture is frozen. Do **not** change crypto, keystore layout, key location, migration logic, or related APIs for the endurance campaign unless the owner explicitly re-opens this freeze.
+
+| Property | Value |
+|----------|--------|
+| Mechanism | NXP PSA opaque AES-256-GCM @ location `0xc00401` (`PSA_KEY_LOCATION_S50_RFC3394_STORAGE`) |
+| Runtime | Volatile ELS opaque key handle; AEAD via `psa_aead_encrypt/decrypt` |
+| Persistence | Device-bound RFC3394 wrapped blob in `ML_PLATFORM_RESERVE_A` (dual 8 KiB slots); **not** plaintext AES |
+| Key version | `RH_KEY_VERSION=2` / `key_id` in keystore + `RHDIAG` (`key_ver`, `key_id`, `ks`) |
+| Legacy | v1 = HMAC-SHA256(domain, SILICONID UUID); one-time value-preserving migrate to v2 |
+| Separated from | `CUST_MK_SK`, imgtool, ROM/MBI, SB3 signer, mTLS keys |
+| Protected state | **Unchanged** — no CMPA/CFPA/IFR/lifecycle/`CUST_MK_SK` writes |
+| Quantum | **600 s** = persisted run-hours accounting quantum (= background cadence); not 15 minutes |
+
+Evidence: `docs/evidence/RUNHOURS_KEY_HARDENING.md`
+
 ## Explicit non-claims (by design, not defects)
 
 - No automatic application-health rollback (DIRECT_XIP; no revert).
@@ -97,5 +114,7 @@ Normal app:   mTLS TCP:5000 → decrypt → Hello/ECHO/STATUS plaintext
 | P5 — Ethernet SB3 OTA hardware matrix | `docs/evidence/P5_ETHERNET_SB3_PROOF.md` |
 | P6 — Host CLI + packaging | `docs/evidence/P6_HOST_CLI_PROOF.md` |
 | P7 — ROM secure boot gate report | `docs/evidence/P7_ROM_SECBOOT_GATE_REPORT.md` |
+| Gate 10 — encrypted run-hours | `docs/evidence/RUNHOURS_GATE10.md` |
+| Run-hours key hardening (ELS opaque) | `docs/evidence/RUNHOURS_KEY_HARDENING.md` |
 
 *Last updated: 2026-09-03 (P7 approved, architecture frozen)*
