@@ -29,6 +29,7 @@ mcux_add_source(
             src/runhours_crypto.c
             src/runhours_keystore.c
             src/runhours_task.c
+            src/runhours_stress.c
             src/flash_arbiter.c
             inc/app_config.h
             inc/diagnostics.h
@@ -43,6 +44,7 @@ mcux_add_source(
             inc/runhours_crypto.h
             inc/runhours_keystore.h
             inc/runhours_task.h
+            inc/runhours_stress.h
             inc/flash_arbiter.h
             inc/flash_range_guard.h
     )
@@ -80,6 +82,12 @@ endif()
 if(DEFINED APP_FLASH_LAYOUT_512K AND APP_FLASH_LAYOUT_512K)
     mcux_add_macro(CC "-DAPP_FLASH_LAYOUT_512K=1")
     message(STATUS "APP_FLASH_LAYOUT_512K=1 (build-only; CMPA remap unchanged until owner gate)")
+endif()
+
+# QA-only 4 Hz run-hours endurance (not for production release).
+if(DEFINED APP_RH_ENDURANCE_TEST AND APP_RH_ENDURANCE_TEST)
+    mcux_add_macro(CC "-DAPP_RH_ENDURANCE_TEST=1")
+    message(STATUS "APP_RH_ENDURANCE_TEST=1 (QA 4Hz journal endurance — NOT FOR PRODUCTION)")
 endif()
 
 mcux_add_source(

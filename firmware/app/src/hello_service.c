@@ -4,6 +4,9 @@
 #include "mtls_socket.h"
 #include "runhours_journal.h"
 #include "runhours_format.h"
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+#include "runhours_stress.h"
+#endif
 
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
@@ -163,6 +166,97 @@ static void handle_client(int client)
         int len = snprintf(reply, sizeof(reply), "RHWIPE %d\n", (int)st);
         (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
     }
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+    else if ((n >= 14) && (strncmp(buf, "RHSTRESS START", 14) == 0))
+    {
+        uint64_t tgt = 0;
+        char reply[96];
+        int len;
+        if (n > 15)
+        {
+            tgt = strtoull(&buf[15], NULL, 10);
+        }
+        if (rh_stress_start(tgt) != 0)
+        {
+            len = snprintf(reply, sizeof(reply), "RHSTRESS ERR\n");
+        }
+        else
+        {
+            rh_stress_status_t st;
+            rh_stress_get_status(&st);
+            len = snprintf(reply, sizeof(reply), "RHSTRESS OK running=%u complete=%u target=%lu quanta=%lu\n",
+                           (unsigned)st.running, (unsigned)st.complete, (unsigned long)st.target_quanta,
+                           (unsigned long)st.quanta);
+        }
+        if (len > 0)
+        {
+            (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
+        }
+    }
+    else if ((n >= 14) && (strncmp(buf, "RHSTRESS STATUS", 15) == 0))
+    {
+        rh_stress_status_t st;
+        char reply[400];
+        int len;
+        rh_stress_get_status(&st);
+        len = snprintf(
+            reply, sizeof(reply),
+            "RHSTRESS mode=4HZ running=%u complete=%u quanta=%lu target=%lu commits_ok=%lu attempts=%lu "
+            "commit_fail=%lu deadline_miss=%lu erase_total=%lu erase_fail=%lu erase_ovf=%lu auth_fail=%lu "
+            "flash_err=%lu torn=%lu deferred=%lu key_ver=%u key_id=%u ks=%u remap=%u seq=%lu uptime_s=%lu\n",
+            (unsigned)st.running, (unsigned)st.complete, (unsigned long)st.quanta, (unsigned long)st.target_quanta,
+            (unsigned long)st.commits_ok, (unsigned long)st.attempts, (unsigned long)st.commit_fail,
+            (unsigned long)st.deadline_miss, (unsigned long)st.erase_total, (unsigned long)st.erase_fail,
+            (unsigned long)st.erase_overflow, (unsigned long)st.auth_fail, (unsigned long)st.flash_err,
+            (unsigned long)st.torn, (unsigned long)st.deferred, (unsigned)st.key_ver, (unsigned)st.key_id,
+            (unsigned)st.key_ks, (unsigned)st.remap, (unsigned long)st.seq, (unsigned long)st.uptime_s);
+        if (len > 0)
+        {
+            (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
+        }
+    }
+    else if ((n >= 12) && (strncmp(buf, "RHSTRESS STOP", 13) == 0))
+    {
+        rh_stress_stop();
+        (void)mtls_write_all(&session, "RHSTRESS STOPPED\n", 17, MTLS_IO_TIMEOUT_MS);
+    }
+    else if ((n >= 6) && (strncmp(buf, "RHERASE", 7) == 0))
+    {
+        uint32_t last_id = 0;
+        rh_erase_event_t ev[4];
+        size_t got;
+        int more = 0;
+        char reply[700];
+        size_t off = 0;
+        int len;
+        if (n > 8)
+        {
+            last_id = (uint32_t)strtoul(&buf[8], NULL, 10);
+        }
+        got = rh_erase_fetch_after(last_id, ev, 4, &more);
+        len = snprintf(reply, sizeof(reply), "RHERASE n=%u MORE=%u\n", (unsigned)got, more ? 1u : 0u);
+        if (len > 0)
+        {
+            off = (size_t)len;
+        }
+        for (size_t i = 0; i < got && off + 120 < sizeof(reply); i++)
+        {
+            len = snprintf(reply + off, sizeof(reply) - off,
+                           "RHERASE id=%lu addr=0x%08lx pool=%c sector=%u count=%lu total=%lu seq=%lu "
+                           "quanta=%lu remap=%u result=%s\n",
+                           (unsigned long)ev[i].id, (unsigned long)ev[i].addr, ev[i].pool ? 'B' : 'A',
+                           (unsigned)ev[i].sector, (unsigned long)ev[i].sector_erase_count,
+                           (unsigned long)ev[i].erase_total, (unsigned long)ev[i].seq,
+                           (unsigned long)ev[i].quanta, (unsigned)ev[i].remap,
+                           ev[i].result ? "FAIL" : "OK");
+            if (len > 0)
+            {
+                off += (size_t)len;
+            }
+        }
+        (void)mtls_write_all(&session, reply, off, MTLS_IO_TIMEOUT_MS);
+    }
+#endif
 #endif
     else
     {

@@ -9,6 +9,10 @@
 #include "flash_range_guard.h"
 #include "memory_layout.h"
 
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+#include "runhours_stress.h"
+#endif
+
 #include "diagnostics.h"
 #include "mcuboot_app_support.h"
 #include "mflash_drv.h"
@@ -184,10 +188,18 @@ static int sector_erase(uint16_t sid)
     if (rc == 0)
     {
         s_diag.erase_count++;
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+        rh_erase_note(addr, sid, 1, s_seq, s_quanta,
+                      (uint8_t)(bl_flash_remap_active() ? 1 : 0));
+#endif
     }
     else
     {
         PRINTF("rh: erase rc=%ld @0x%08lx (ignored if virgin)\r\n", (long)rc, (unsigned long)addr);
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+        rh_erase_note(addr, sid, 0, s_seq, s_quanta,
+                      (uint8_t)(bl_flash_remap_active() ? 1 : 0));
+#endif
     }
     return 0;
 }

@@ -94,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Build-only APP_FLASH_LAYOUT_512K (no CMPA write); use with --lean",
     )
+    b.add_argument(
+        "--rh-endurance",
+        action="store_true",
+        help="QA APP_RH_ENDURANCE_TEST=1 (4Hz journal); requires --layout512; not for release",
+    )
 
     f = sub.add_parser("flash", help="west flash via LinkServer")
     f.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
@@ -106,6 +111,15 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("reset", help="MCU-Link reset via LinkServer")
     e = sub.add_parser("echo", help="Send ECHO on Hello TCP :5000")
     e.add_argument("payload", nargs="?", default="ping")
+
+    rhmon = sub.add_parser("rh-stress-monitor", help="QA 4Hz run-hours endurance host monitor")
+    rhmon.add_argument("--logdir", type=Path, default=Path(r"C:\mcxn\builds\rh_endurance_4hz"))
+    rhmon.add_argument("--new-run", action="store_true", help="Force new baseline (refuse if unfinished without this)")
+    rhmon.add_argument("--target-delta", type=int, default=525600)
+    rhmon.add_argument("--poll-s", type=float, default=60.0)
+    rhmon.add_argument("--smoke-delta", type=int, default=0, help="If >0, use as target_delta (smoke/pilot)")
+    rhmon.add_argument("--auto-reset-at", type=str, default="", help="Comma percent milestones e.g. 5,25,50,75")
+    rhmon.add_argument("--max-hours", type=float, default=0.0, help="Optional wall-clock abort (0=none)")
 
     pkg = sub.add_parser("package", help="Sign + unit SB3 + sidecar manifest (no secrets in dist)")
     pkg.add_argument("--unit", default=cfg.get("unit_name", "DEV-UNIT-01"))
@@ -153,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
             qa=bool(getattr(args, "qa", False)),
             lean=bool(getattr(args, "lean", False)),
             layout512=bool(getattr(args, "layout512", False)),
+            rh_endurance=bool(getattr(args, "rh_endurance", False)),
         )
     if args.cmd == "flash":
         return cmd_flash(cfg, args.target)
@@ -181,6 +196,19 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     if args.cmd == "reset":
         return cmd_reset(cfg)
+    if args.cmd == "rh-stress-monitor":
+        from rh_endurance_monitor import main as rh_mon_main  # noqa: WPS433
+
+        delta = int(args.smoke_delta) if int(args.smoke_delta) > 0 else int(args.target_delta)
+        return rh_mon_main(
+            cfg,
+            logdir=args.logdir,
+            new_run=bool(args.new_run),
+            target_delta=delta,
+            poll_s=float(args.poll_s),
+            auto_reset_at=args.auto_reset_at,
+            max_hours=float(args.max_hours),
+        )
     if args.cmd == "package":
         return cmd_package(
             cfg,

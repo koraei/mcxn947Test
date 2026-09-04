@@ -184,6 +184,7 @@ def cmd_build(
     qa: bool = False,
     lean: bool = False,
     layout512: bool = False,
+    rh_endurance: bool = False,
 ) -> int:
     sdk = Path(cfg["sdk_root"])
     build_root = Path(cfg["build_root"])
@@ -212,9 +213,14 @@ def cmd_build(
             suffix += "_512k"
         if qa:
             suffix += "_qa"
+        if rh_endurance:
+            suffix += "_rhendurance"
         bdir = build_root / f"app_{target}{suffix}" if suffix else build_root / f"app_{target}"
         if layout512 and not lean:
             print("BUILD NOTE: APP_FLASH_LAYOUT_512K without --lean (debug size may exceed slot)", flush=True)
+        if rh_endurance and not layout512:
+            print("BUILD FAIL: --rh-endurance requires --layout512", file=sys.stderr)
+            return 1
         defs = variant_defs_path(cfg, target.upper(), version)
         extra = f"-include {defs.as_posix()}"
         if qa:
@@ -222,6 +228,11 @@ def cmd_build(
             # Extra heap: qa task + mbedtls session buffers (heap_3 allocates stacks from malloc).
             extra += " -DAPP_QA_STREAM=1 -DINCLUDE_uxTaskGetStackHighWaterMark=1"
             print("BUILD NOTE: APP_QA_STREAM=1 (QA soak image — not for release)", flush=True)
+        if rh_endurance:
+            print(
+                "BUILD NOTE: APP_RH_ENDURANCE_TEST=1 (QA 4Hz journal — NOT FOR PRODUCTION)",
+                flush=True,
+            )
         if lean:
             print(
                 "BUILD NOTE: LEAN_PROD_TEST (mbedtls USER_CONFIG allow-list + -Os release)",
@@ -251,6 +262,13 @@ def cmd_build(
             cmd.append("--cmake-opt=-DLEAN_PROD=1")
         if layout512:
             cmd.append("--cmake-opt=-DAPP_FLASH_LAYOUT_512K=1")
+        if rh_endurance:
+            cmd.append("--cmake-opt=-DAPP_RH_ENDURANCE_TEST=1")
+            # Stress task (heap_3 stack) + erase ring: lean 0x1B000 OOMs Hello handshake
+            # (mbedtls -0x7F00 / -32512). Raise arena for QA endurance only.
+            if not qa:
+                cmd.append("--cmake-opt=-DQA_HEAP_SIZE=0x28000")
+                print("BUILD NOTE: QA_HEAP_SIZE=0x28000 for APP_RH_ENDURANCE_TEST mTLS", flush=True)
         if qa:
             # Raise newlib/FreeRTOS malloc arena for QA soak only (m_data has headroom).
             # Must be a CMake -DQA_HEAP_SIZE so it replaces the app CMakeLists defsym
@@ -372,8 +390,11 @@ def package_unit(
     build_first: bool = False,
     lean: bool = False,
     layout512: bool = False,
+    rh_endurance: bool = False,
 ) -> Path:
     """Build (optional), sign padded candidate, SB3 via nxpimage, write sidecar. Returns manifest path."""
+    if rh_endurance:
+        raise RuntimeError("refusing to package production SB3 with APP_RH_ENDURANCE_TEST=1")
     unit = load_unit(unit_name)
     verify_cust_mk_sk_fingerprint(cfg, unit)
     variant = variant_for_version(version)
@@ -394,6 +415,8 @@ def package_unit(
         suffix += "_512k"
     build_dir = Path(cfg["build_root"]) / (f"app_{target}{suffix}" if suffix else f"app_{target}")
     raw = find_app_bin(build_dir)
+    if b"QA RUN-HOURS ENDURANCE" in raw.read_bytes():
+        raise RuntimeError("refusing to package binary that contains APP_RH_ENDURANCE_TEST banner")
     slot_size_int = 0x00080000 if layout512 else 0x00100000
     slot_size_str = f"0x{slot_size_int:x}"
     signed = build_dir / (f"app_{target}_SIGNED_PAD_512k.bin" if layout512 else f"app_{target}_SIGNED_PAD.bin")

@@ -10,6 +10,9 @@
 #include "runhours_journal.h"
 #include "runhours_task.h"
 #include "flash_arbiter.h"
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+#include "runhours_stress.h"
+#endif
 
 #include "fsl_common.h"
 #include "fsl_debug_console.h"
@@ -81,7 +84,11 @@ static void main_thread(void *arg)
         PRINTF("rh_journal_init: %d\r\n", (int)rhs);
         if (rhs == RH_OK)
         {
+#if defined(APP_RH_ENDURANCE_TEST) && (APP_RH_ENDURANCE_TEST)
+            rh_stress_task_start();
+#else
             runhours_task_start();
+#endif
         }
     }
 #endif
