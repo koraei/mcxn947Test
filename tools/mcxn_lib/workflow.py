@@ -261,8 +261,14 @@ def cmd_build(
         return run(cmd, cfg, cwd=sdk)
 
     if target == "mcuboot":
-        src = cfg["paths"]["mcuboot_example"]
-        bdir = build_root / "mcuboot_opensource"
+        # Default: stock 1 MiB IFR MCUboot. layout512 → repo 512 KiB overlay.
+        if layout512:
+            src = str((ROOT / "firmware" / "mcuboot_ifr_512k").as_posix())
+            bdir = build_root / "mcuboot_opensource_512k"
+            print("BUILD NOTE: IFR MCUboot 512 KiB slots + NPX LIM=15", flush=True)
+        else:
+            src = cfg["paths"]["mcuboot_example"]
+            bdir = build_root / "mcuboot_opensource"
         cmd = [
             sys.executable,
             "-m",
@@ -364,6 +370,8 @@ def package_unit(
     *,
     out_dir: Path | None = None,
     build_first: bool = False,
+    lean: bool = False,
+    layout512: bool = False,
 ) -> Path:
     """Build (optional), sign padded candidate, SB3 via nxpimage, write sidecar. Returns manifest path."""
     unit = load_unit(unit_name)
@@ -371,15 +379,25 @@ def package_unit(
     variant = variant_for_version(version)
     target = variant.lower()  # v1 / v2
 
+    if layout512 and not lean and build_first:
+        print("PACKAGE NOTE: layout512 without lean may exceed 512 KiB slot", flush=True)
+
     if build_first:
-        rc = cmd_build(cfg, target, version=version)
+        rc = cmd_build(cfg, target, version=version, lean=lean, layout512=layout512)
         if rc != 0:
             raise RuntimeError(f"build {target} failed: {rc}")
 
-    build_dir = Path(cfg["build_root"]) / f"app_{target}"
+    suffix = ""
+    if lean:
+        suffix += "_lean"
+    if layout512:
+        suffix += "_512k"
+    build_dir = Path(cfg["build_root"]) / (f"app_{target}{suffix}" if suffix else f"app_{target}")
     raw = find_app_bin(build_dir)
-    signed = build_dir / f"app_{target}_SIGNED_PAD.bin"
-    sign_image(cfg, raw, signed, version, pad=True, confirm=False)
+    slot_size_int = 0x00080000 if layout512 else 0x00100000
+    slot_size_str = f"0x{slot_size_int:x}"
+    signed = build_dir / (f"app_{target}_SIGNED_PAD_512k.bin" if layout512 else f"app_{target}_SIGNED_PAD.bin")
+    sign_image(cfg, raw, signed, version, pad=True, confirm=False, slot_size=slot_size_str)
 
     dist = out_dir or (ROOT / "dist" / unit_name / version)
     dist.mkdir(parents=True, exist_ok=True)
@@ -400,7 +418,10 @@ def package_unit(
     shutil.copy2(signed, signed_in_ws)
     ws_sb = ota_images / f"ota_sb_product_{target}_pad.sb"
     yaml_path = configs / f"mcxn_sb3_product_{target}_pad_gen.yaml"
-    yaml_path.write_text(_sb3_yaml(cfg, unit, signed_in_ws, ws_sb), encoding="ascii")
+    yaml_path.write_text(
+        _sb3_yaml(cfg, unit, signed_in_ws, ws_sb, slot_size=slot_size_int),
+        encoding="ascii",
+    )
 
     # Ensure key material is never under dist/
     for p in dist.rglob("*"):
@@ -422,6 +443,14 @@ def package_unit(
             p.unlink()
             print("WARN: removed non-technician file from dist:", p.name)
 
+    # Gate: SB3 must not touch shared pools when packaging 512 KiB
+    if layout512:
+        check = subprocess.call(
+            [sys.executable, str(ROOT / "tools" / "check_sb3_layout.py"), str(yaml_path), "--layout512"],
+        )
+        if check != 0:
+            raise RuntimeError("SB3 layout check failed (shared-region / slot overflow)")
+
     manifest = {
         "unit_name": unit_name,
         "target_uuid": unit["mcu_uuid"].upper(),
@@ -431,6 +460,9 @@ def package_unit(
         "sb3_bytes": sb3_path.stat().st_size,
         "sb3_sha256": sha256_file(sb3_path),
         "signed_image_sha256": sha256_file(signed),
+        "slot_size": slot_size_str,
+        "layout512": layout512,
+        "lean": lean,
         "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "git_commit": git_commit(),
         "tool_versions": tool_versions(cfg),
@@ -450,10 +482,25 @@ def package_unit(
     return man_path
 
 
-def cmd_package(cfg: dict, unit_name: str, version: str, build_first: bool = False) -> int:
+def cmd_package(
+    cfg: dict,
+    unit_name: str,
+    version: str,
+    build_first: bool = False,
+    *,
+    lean: bool = False,
+    layout512: bool = False,
+) -> int:
     try:
         assert_mcuboot_imgtool_key(cfg)
-        package_unit(cfg, unit_name, version, build_first=build_first)
+        package_unit(
+            cfg,
+            unit_name,
+            version,
+            build_first=build_first,
+            lean=lean,
+            layout512=layout512,
+        )
         return 0
     except ImgtoolKeyError as e:
         print("PACKAGE FAIL:", e, file=sys.stderr)

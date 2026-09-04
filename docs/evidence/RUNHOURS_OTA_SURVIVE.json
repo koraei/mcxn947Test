@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "quanta_across_remap_ota": {
+    "v2_pre_force": 136,
+    "v2_post_force": 137,
+    "v3_post_ota": 137
+  },
+  "diag_v3": "RHDIAG seq=139 quanta=137 writes=0 erases=0 auth_fail=0 torn=2 flash_err=0 crypto_err=0 deferred=0 sector=0 remap=0 prov=1",
+  "note": "Manual completion after campaign OTA race; journal value unchanged except legitimate RHFORCE"
+}

@@ -2,6 +2,8 @@
 #include "app_config.h"
 #include "diagnostics.h"
 #include "mtls_socket.h"
+#include "runhours_journal.h"
+#include "runhours_format.h"
 
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
@@ -11,6 +13,7 @@
 #include "task.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static void close_fd(int *fd)
@@ -98,6 +101,67 @@ static void handle_client(int client)
             }
         }
     }
+#if defined(APP_FLASH_LAYOUT_512K)
+    else if ((n >= 6) && (strncmp(buf, "RHDIAG", 6) == 0))
+    {
+        rh_diag_t d;
+        char reply[320];
+        int len;
+        rh_journal_get_diag(&d);
+        len = snprintf(reply, sizeof(reply),
+                       "RHDIAG seq=%lu quanta=%lu writes=%lu erases=%lu auth_fail=%lu torn=%lu "
+                       "flash_err=%lu crypto_err=%lu deferred=%lu sector=%u remap=%u prov=%u\n",
+                       (unsigned long)d.seq, (unsigned long)d.quanta, (unsigned long)d.write_count,
+                       (unsigned long)d.erase_count, (unsigned long)d.auth_fail, (unsigned long)d.torn_recoveries,
+                       (unsigned long)d.flash_errors, (unsigned long)d.crypto_errors, (unsigned long)d.deferred_ota,
+                       (unsigned)d.active_sector, (unsigned)d.remap_active, (unsigned)d.provisioned);
+        if (len > 0)
+        {
+            (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
+        }
+    }
+    else if ((n >= 7) && (strncmp(buf, "RHFORCE", 7) == 0))
+    {
+        rh_status_t st = rh_journal_force_next_quantum();
+        char reply[64];
+        int len;
+        if (st == RH_OK)
+        {
+            uint64_t q = 0;
+            (void)rh_journal_get_quanta(&q);
+            len = snprintf(reply, sizeof(reply), "RHFORCE OK quanta=%lu\n", (unsigned long)q);
+        }
+        else
+        {
+            len = snprintf(reply, sizeof(reply), "RHFORCE %d\n", (int)st);
+        }
+        if (len > 0)
+        {
+            (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
+        }
+    }
+    else if ((n >= 7) && (strncmp(buf, "RHFAULT", 7) == 0))
+    {
+        unsigned stage = 0;
+        if (n > 8)
+        {
+            stage = (unsigned)atoi(&buf[8]);
+        }
+        rh_journal_arm_fault((rh_fault_stage_t)stage);
+        {
+            char reply[48];
+            int len = snprintf(reply, sizeof(reply), "RHFAULT armed=%u\n", stage);
+            (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
+        }
+    }
+    else if ((n >= 6) && (strncmp(buf, "RHWIPE", 6) == 0))
+    {
+        rh_status_t st = rh_journal_wipe_and_init();
+        char reply[48];
+        int len = snprintf(reply, sizeof(reply), "RHWIPE %d\n", (int)st);
+        (void)mtls_write_all(&session, reply, (size_t)len, MTLS_IO_TIMEOUT_MS);
+    }
+#endif
     else
     {
         g_hello_error_count++;

@@ -6,6 +6,7 @@
 #include "app_config.h"
 #include "diagnostics.h"
 #include "mtls_socket.h"
+#include "flash_arbiter.h"
 
 #include "sb3_api.h"
 #include "mcuboot_app_support.h"
@@ -113,9 +114,18 @@ static int handle_update_session(int client)
     PRINTF("Update: SB3 len=%lu inactive@0x%08lX\r\n", (unsigned long)hdr.sb3_len,
            (unsigned long)prt_ota.start);
 
+    /* OTA owns flash exclusively until reset (or error release). */
+    if (flash_arbiter_acquire(FLASH_OWNER_OTA, 30000) != 0)
+    {
+        reply_err(&session, "ERR BUSY\n");
+        mtls_session_close(&session);
+        return -1;
+    }
+
     if (sb3_api_init() != kStatus_Success)
     {
         g_sb3_failure_count++;
+        flash_arbiter_release(FLASH_OWNER_OTA);
         reply_err(&session, "ERR SB3\n");
         mtls_session_close(&session);
         return -1;
@@ -133,6 +143,7 @@ static int handle_update_session(int client)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
+            flash_arbiter_release(FLASH_OWNER_OTA);
             reply_err(&session, "ERR TIMEOUT\n");
             mtls_session_close(&session);
             return -1;
@@ -143,6 +154,7 @@ static int handle_update_session(int client)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
+            flash_arbiter_release(FLASH_OWNER_OTA);
             reply_err(&session, "ERR SB3\n");
             mtls_session_close(&session);
             return -1;
@@ -153,6 +165,7 @@ static int handle_update_session(int client)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
+            flash_arbiter_release(FLASH_OWNER_OTA);
             reply_err(&session, "ERR SB3\n");
             mtls_session_close(&session);
             return -1;
@@ -170,6 +183,7 @@ static int handle_update_session(int client)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
+            flash_arbiter_release(FLASH_OWNER_OTA);
             reply_err(&session, "ERR TIMEOUT\n");
             mtls_session_close(&session);
             return -1;
@@ -181,6 +195,7 @@ static int handle_update_session(int client)
         {
             g_sb3_failure_count++;
             sb3_api_deinit();
+            flash_arbiter_release(FLASH_OWNER_OTA);
             reply_err(&session, "ERR SB3\n");
             mtls_session_close(&session);
             return -1;
@@ -196,6 +211,7 @@ static int handle_update_session(int client)
 
     if (bl_verify_image(prt_ota.start, prt_ota.size) == 0)
     {
+        flash_arbiter_release(FLASH_OWNER_OTA);
         reply_err(&session, "ERR IMAGE\n");
         mtls_session_close(&session);
         return -1;
@@ -203,6 +219,7 @@ static int handle_update_session(int client)
 
     if (bl_update_image_state(0, kSwapType_ReadyForTest) != kStatus_Success)
     {
+        flash_arbiter_release(FLASH_OWNER_OTA);
         reply_err(&session, "ERR IMAGE\n");
         mtls_session_close(&session);
         return -1;

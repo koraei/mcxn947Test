@@ -1,0 +1,51 @@
+hello sbl.
+MCUboot 512K remap LIM=15
+Bootloader Version 2.3.0
+Built Sep  4 2026 12:44:26
+Toolchain GCC 14.3.1 20250623
+Upgrade mode: FLASH REMAP
+Primary slot: version=3.2.0+0
+Secondary slot: version=2.0.0+0
+boot_version_cmp: ver1 2.0.0 vs ver2 3.2.0
+boot_validate_slot: slot 0, expected_swap_type 0
+bootutil_img_validate: flash area 20000238
+bootutil_img_hash
+bootutil_tlv_iter_begin: type 65535, prot == 0
+bootutil_img_validate: TLV off 309884, end 310030
+bootutil_tlv_iter_next: searching for 65535 (65535 is any) starting at 309884 ending at 310030
+bootutil_tlv_iter_next: TLV 16 found at 309888 (size 32)
+bootutil_img_validate: EXPECTED_HASH_TLV == 16
+bootutil_tlv_iter_next: searching for 65535 (65535 is any) starting at 309920 ending at 310030
+bootutil_tlv_iter_next: TLV 1 found at 309924 (size 32)
+bootutil_img_validate: EXPECTED_KEY_TLV == 1
+bootutil_find_key
+bootutil_tlv_iter_next: searching for 65535 (65535 is any) starting at 309956 ending at 310030
+bootutil_tlv_iter_next: TLV 34 found at 309960 (size 70)
+bootutil_img_validate: EXPECTED_SIG_TLV == 34
+bootutil_verify_sig: ECDSA builtin key 0
+bootutil_tlv_iter_next: searching for 65535 (65535 is any) starting at 310030 ending at 310030
+bootutil_tlv_iter_next: TLV 65535 not found
+Image 0 loaded from the primary slot
+Bootloader chainload address offset: 0x0
+Reset_Handler address offset: 0x400
+Jumping to the image
+
+
+Booting the primary slot - flash remapping is disabled
+
+=== MCXN947 Secure OTA prototype ===
+UUID=9DA8D48D0DDCD755903E8FBD3836C153
+App V3 version=3.2.0
+Initializing PHY...
+LED task start variant=V3 on=80 off=720
+
+************************************************
+MCXN947 Secure OTA prototype
+************************************************
+ IPv4 Address     : 192.168.2.90
+ IPv4 Subnet mask : 255.255.255.0
+ IPv4 Gateway     : 192.168.2.24
+************************************************
+mtls: global init OK
+Hello mTLS listening on port 5000
+Update mTLS listening on port 5555 (window remaining 177s)

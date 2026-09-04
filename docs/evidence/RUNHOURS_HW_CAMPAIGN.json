@@ -1,0 +1,77 @@
+{
+  "cases": [
+    {
+      "name": "wipe_virgin",
+      "pass": true
+    },
+    {
+      "name": "append_5",
+      "pass": true
+    },
+    {
+      "name": "cut_before_record",
+      "pass": true
+    },
+    {
+      "name": "cut_during_phrase0",
+      "pass": true
+    },
+    {
+      "name": "cut_during_phrase1",
+      "pass": true
+    },
+    {
+      "name": "cut_before_commit",
+      "pass": true
+    },
+    {
+      "name": "cut_after_commit",
+      "pass": true
+    },
+    {
+      "name": "sector_rollover",
+      "pass": true
+    },
+    {
+      "name": "rollover_erase_observed",
+      "pass": true
+    },
+    {
+      "name": "ota_remap_journal_survives",
+      "pass": true,
+      "note": "see RUNHOURS_OTA_SURVIVE.json"
+    }
+  ],
+  "pass": true,
+  "diag": {
+    "boot": {
+      "seq": 1,
+      "quanta": 0,
+      "writes": 8,
+      "erases": 16,
+      "auth_fail": 0,
+      "torn": 0,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 8,
+      "remap": 0,
+      "prov": 1
+    },
+    "after_rollover": {
+      "seq": 137,
+      "quanta": 136,
+      "writes": 524,
+      "erases": 1,
+      "auth_fail": 0,
+      "torn": 2,
+      "flash_err": 0,
+      "crypto_err": 0,
+      "deferred": 0,
+      "sector": 9,
+      "remap": 0,
+      "prov": 1
+    },
+    "quanta_before_ota_block": 136
+  }
+}

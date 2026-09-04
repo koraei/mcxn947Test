@@ -26,6 +26,9 @@ mcux_add_source(
             src/mtls_socket.c
             src/qa_stream.c
             src/runhours_journal.c
+            src/runhours_crypto.c
+            src/runhours_task.c
+            src/flash_arbiter.c
             inc/app_config.h
             inc/diagnostics.h
             inc/led_task.h
@@ -36,8 +39,11 @@ mcux_add_source(
             inc/memory_layout.h
             inc/runhours_format.h
             inc/runhours_journal.h
+            inc/runhours_crypto.h
+            inc/runhours_task.h
+            inc/flash_arbiter.h
             inc/flash_range_guard.h
-)
+    )
 
 mcux_add_include(
     INCLUDES enet

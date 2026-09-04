@@ -7,6 +7,9 @@
 #include "mtls_socket.h"
 #include "qa_stream.h"
 #include "update_service.h"
+#include "runhours_journal.h"
+#include "runhours_task.h"
+#include "flash_arbiter.h"
 
 #include "fsl_common.h"
 #include "fsl_debug_console.h"
@@ -71,6 +74,17 @@ static void main_thread(void *arg)
         vTaskDelete(NULL);
         return;
     }
+
+#if defined(APP_FLASH_LAYOUT_512K)
+    {
+        rh_status_t rhs = rh_journal_init();
+        PRINTF("rh_journal_init: %d\r\n", (int)rhs);
+        if (rhs == RH_OK)
+        {
+            runhours_task_start();
+        }
+    }
+#endif
 
     hello_service_start();
     update_service_start();

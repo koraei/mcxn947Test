@@ -111,6 +111,16 @@ def main(argv: list[str] | None = None) -> int:
     pkg.add_argument("--unit", default=cfg.get("unit_name", "DEV-UNIT-01"))
     pkg.add_argument("--version", required=True)
     pkg.add_argument("--build", action="store_true", help="Build variant before packaging")
+    pkg.add_argument(
+        "--lean",
+        action="store_true",
+        help="Use lean build dir (app_*_lean); required with --layout512 for fit",
+    )
+    pkg.add_argument(
+        "--layout512",
+        action="store_true",
+        help="Sign/package for 512 KiB slots (imgtool+SB3 erase 0x80000); no CMPA write",
+    )
 
     rel = sub.add_parser("release", help="build + package into dist/<unit>/<version>/")
     rel.add_argument("--unit", default=cfg.get("unit_name", "DEV-UNIT-01"))
@@ -172,7 +182,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "reset":
         return cmd_reset(cfg)
     if args.cmd == "package":
-        return cmd_package(cfg, args.unit, args.version, build_first=args.build)
+        return cmd_package(
+            cfg,
+            args.unit,
+            args.version,
+            build_first=args.build,
+            lean=bool(getattr(args, "lean", False)),
+            layout512=bool(getattr(args, "layout512", False)),
+        )
     if args.cmd == "release":
         return cmd_release(cfg, args.unit, args.version)
     if args.cmd == "update":

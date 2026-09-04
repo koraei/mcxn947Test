@@ -24,6 +24,10 @@
 #define RH_RECORD_TYPE           (1u)
 #define RH_QUANTUM_SECONDS       (600u)
 
+/* Exactly 16 bytes — matches host READY_MARK b"READY_MARKER_v1\\0" */
+static const uint8_t RH_READY_MARKER_BYTES[16] = {'R', 'E', 'A', 'D', 'Y', '_', 'M', 'A',
+                                                    'R', 'K', 'E', 'R', '_', 'v', '1', 0};
+
 #if defined(APP_FLASH_LAYOUT_512K)
 _Static_assert(ML_RUNHOURS_POOL_A_SZ == (RH_POOL_A_SECTORS * RH_SECTOR_SIZE), "pool A");
 _Static_assert(ML_RUNHOURS_POOL_B_SZ == (RH_POOL_B_SECTORS * RH_SECTOR_SIZE), "pool B");
@@ -33,5 +37,20 @@ _Static_assert(APP_SLOT_SIZE + ML_PLATFORM_RESERVE_A_SZ + ML_RUNHOURS_POOL_A_SZ 
                    0x00100000u,
                "bank0 map");
 #endif
+
+typedef struct {
+    uint64_t seq;
+    uint64_t quanta;
+    uint32_t write_count;
+    uint32_t erase_count;
+    uint32_t auth_fail;
+    uint32_t torn_recoveries;
+    uint32_t flash_errors;
+    uint32_t crypto_errors;
+    uint32_t deferred_ota;
+    uint16_t active_sector;
+    uint8_t  remap_active;
+    uint8_t  provisioned;
+} rh_diag_t;
 
 #endif /* RUNHOURS_FORMAT_H_ */
