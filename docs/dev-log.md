@@ -1,4 +1,4 @@
-# Development log
+﻿# Development log
 
 ## 2026-09-03 â€” Phase P0 start
 
@@ -242,4 +242,16 @@ Windows `Disable-NetAdapter` Access denied → `docs/evidence/M4_CABLE_CYCLES.md
 Full sequence: `docs/evidence/M4_POST_SOAK_PLAN.md`  
 (soak verify → manual cable cycles → dual-session root-cause → prod restore → 3.0.0→3.1.0 OTA → final report).  
 **Accepted 2026-09-03:** leave 24 h persistent soak undisturbed (no cable/flash/reset during soak).
+
+## 2026-09-04 — 512 KiB plan start (Rev B)
+
+**Branch:** `feat/512k-ab-encrypted-runhours` (tag `pre-512k-layout-runhours`)  
+**Plan:** `doc/FRDM_MCXN947_512K_AB_ENCRYPTED_RUNHOURS_TEST_PLAN_REV_B_FINAL.md`
+
+### M0
+Soak stopped (owner). Baseline debug V3 ~786 KiB text. Dual-slot smoke PASS. Evidence: `docs/evidence/M0_512K_BASELINE.md`.
+
+### M1 (in progress)
+`LEAN_PROD_TEST`: mbedtls USER_CONFIG allow-list + `-Os` → **~309 KiB text** (fits ≤448 KiB / 512 KiB gates). Hello/ECHO/STATUS + M2 negatives PASS on hardware. Evidence: `docs/evidence/M1_LEAN_SIZE_GATE.md`.  
+CMPA/remap **not** touched.
 

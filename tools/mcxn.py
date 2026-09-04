@@ -84,6 +84,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Build with APP_QA_STREAM=1 into app_<target>_qa (M4 soak only; not for release)",
     )
+    b.add_argument(
+        "--lean",
+        action="store_true",
+        help="LEAN_PROD_TEST: mbedtls allow-list USER_CONFIG + -Os into app_<target>_lean",
+    )
 
     f = sub.add_parser("flash", help="west flash via LinkServer")
     f.add_argument("target", choices=["v1", "v2", "v3", "mcuboot"])
@@ -126,7 +131,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "doctor":
         return cmd_doctor(cfg)
     if args.cmd == "build":
-        return cmd_build(cfg, args.target, version=args.version, qa=bool(getattr(args, "qa", False)))
+        return cmd_build(
+            cfg,
+            args.target,
+            version=args.version,
+            qa=bool(getattr(args, "qa", False)),
+            lean=bool(getattr(args, "lean", False)),
+        )
     if args.cmd == "flash":
         return cmd_flash(cfg, args.target)
     if args.cmd == "serial":

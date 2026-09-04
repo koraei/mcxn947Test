@@ -176,7 +176,14 @@ def variant_defs_path(cfg: dict, variant: str, version: str | None = None) -> Pa
     return path
 
 
-def cmd_build(cfg: dict, target: str, version: str | None = None, *, qa: bool = False) -> int:
+def cmd_build(
+    cfg: dict,
+    target: str,
+    version: str | None = None,
+    *,
+    qa: bool = False,
+    lean: bool = False,
+) -> int:
     sdk = Path(cfg["sdk_root"])
     build_root = Path(cfg["build_root"])
     build_root.mkdir(parents=True, exist_ok=True)
@@ -197,7 +204,15 @@ def cmd_build(cfg: dict, target: str, version: str | None = None, *, qa: bool = 
             print("mtls creds generate failed", rc_gen, file=sys.stderr)
             return rc_gen
         app = ROOT / cfg["paths"]["app"]
-        bdir = build_root / (f"app_{target}_qa" if qa else f"app_{target}")
+        if qa and lean:
+            print("BUILD FAIL: --qa and --lean are mutually exclusive", file=sys.stderr)
+            return 2
+        if qa:
+            bdir = build_root / f"app_{target}_qa"
+        elif lean:
+            bdir = build_root / f"app_{target}_lean"
+        else:
+            bdir = build_root / f"app_{target}"
         defs = variant_defs_path(cfg, target.upper(), version)
         extra = f"-include {defs.as_posix()}"
         if qa:
@@ -205,6 +220,12 @@ def cmd_build(cfg: dict, target: str, version: str | None = None, *, qa: bool = 
             # Extra heap: qa task + mbedtls session buffers (heap_3 allocates stacks from malloc).
             extra += " -DAPP_QA_STREAM=1 -DINCLUDE_uxTaskGetStackHighWaterMark=1"
             print("BUILD NOTE: APP_QA_STREAM=1 (QA soak image — not for release)", flush=True)
+        if lean:
+            print(
+                "BUILD NOTE: LEAN_PROD_TEST (mbedtls USER_CONFIG allow-list + -Os release)",
+                flush=True,
+            )
+        west_config = "release" if lean else "debug"
         cmd = [
             sys.executable,
             "-m",
@@ -219,11 +240,13 @@ def cmd_build(cfg: dict, target: str, version: str | None = None, *, qa: bool = 
             "--toolchain",
             "armgcc",
             "--config",
-            "debug",
+            west_config,
             "-p",
             "auto",
             f"--cmake-opt=-DEXTRA_CFLAGS={extra}",
         ]
+        if lean:
+            cmd.append("--cmake-opt=-DLEAN_PROD=1")
         if qa:
             # Raise newlib/FreeRTOS malloc arena for QA soak only (m_data has headroom).
             # Must be a CMake -DQA_HEAP_SIZE so it replaces the app CMakeLists defsym

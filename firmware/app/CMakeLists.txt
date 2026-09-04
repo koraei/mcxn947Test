@@ -43,7 +43,23 @@ mcux_add_include(
              ota_mcuboot_server
              inc
              src
+             security
 )
+
+# LEAN_PROD_TEST: product USER_CONFIG overlay (allow-list prune). BASELINE omits this.
+if(DEFINED LEAN_PROD AND LEAN_PROD)
+    mcux_add_macro(
+        CC "-DMBEDTLS_USER_CONFIG_FILE=\\\"mbedtls_product_user_config.h\\\""
+    )
+    message(STATUS "LEAN_PROD: MBEDTLS_USER_CONFIG_FILE=mbedtls_product_user_config.h")
+    # Size build: -Os + GC (do not reduce TLS/lwIP buffers).
+    mcux_add_armgcc_configuration(
+        TARGETS release
+        CC "-Os -ffunction-sections -fdata-sections"
+        CX "-Os -ffunction-sections -fdata-sections"
+        LD "-Wl,--gc-sections"
+    )
+endif()
 
 mcux_add_source(
     SOURCES flash_partitioning/flash_partitioning.c
