@@ -282,3 +282,18 @@ Lean product **3.1.0** both slots (non-QA). Hello/STATUS OK.
 ### STOP
 `docs/evidence/PRE_CMPA_OWNER_GATE.md` — owner approval required before `FLASH_REMAP_SIZE=15`.
 
+## 2026-09-04 — pre-CMPA commit/tag + WRITE STOP
+
+**Tag:** `pre-cmpa-512k-remap`  
+**Commit:** recorded in `docs/evidence/PRE_CMPA_WRITE_STOP.md`
+
+### Done
+- WIP committed; working tree cleaned; annotated tag created.
+- Clean lean rebuild + Hello/STATUS smoke PASS.
+- ISP backups: CMPA/CFPA match P7 live hashes.
+
+### STOP (no CMPA write)
+1. `pfr export` of remap=15 YAML differs in **extra** bytes `@0x42/43/46/47` — rejected.
+2. Surgical one-byte CMPA patch exists, but **IFR MCUboot hardcodes NPX LIM=31 (1 MiB)** — CMPA alone cannot produce 512 KiB remap.
+3. Awaiting owner approval for **surgical CMPA + IFR MCUboot LIM=15** together.
+
